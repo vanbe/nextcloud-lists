@@ -27,8 +27,8 @@ AVANT de coder une nouvelle partie, lis le doc correspondant :
 6. Si tu bloques : lis les logs du container avant de tenter un workaround.
 
 ## État actuel
-Jalon en cours : **8 — Modale de partage + recherche user/groupe**
-Dernier commit : `feat(jalon-7): autocomplete items — suggest endpoint + ItemInput.vue`
+Jalon en cours : **10 — Tests PHPUnit + Vitest**
+Dernier commit : `feat(jalon-9): polish UX — toasts, cascade delete, confirm dialog, clear checked`
 
 ### Pièges découverts (à ne pas réintroduire)
 - `NcAppContent` ne rend pas son slot par défaut dans @vue/compat MODE:2 → remplacé par `<main id="app-content">` natif.
@@ -43,3 +43,5 @@ Dernier commit : `feat(jalon-7): autocomplete items — suggest endpoint + ItemI
 - ✅ **5 — Items CRUD + toggle** : `ItemEntity`, `ItemMapper`, `ItemService`, `ItemController`, routes OCS imbriquées, `itemsApi`, store `items.js`, `ItemList.vue` (ajout/toggle/suppression, tri cochés/non-cochés). Piège layout NC résolu.
 - ✅ **6 — Partage** : `ShareEntity`/`ShareMapper` (sentinelle -1 obligatoire sur int), `PermissionService` (IGroupManager + IUserManager), `ShareService`/`ShareController`, `ListMapper.findAllForUser` (LEFT JOIN + GROUP BY — pas EXISTS), menu ⋮ sidebar + `ShareModal.vue`.
 - ✅ **7 — Autocomplete items** : `ItemMapper.suggest()` (LOWER LIKE), route `GET /items/suggest`, `ItemInput.vue` (debounce 150ms, min 2 chars, ↑↓ Enter Esc), scroll+highlight+uncheck sur sélection suggestion.
+- ✅ **8 — Modale de partage** : `UserController` (searchUsers/searchGroups, IUserManager/IGroupManager), `UserGroupSearch.vue`, `ShareModal.vue` (2-step pending, inline perms update, Esc close).
+- ✅ **9 — Polish UX** : cascade delete (ItemMapper+ShareMapper dans ListService.delete), toasts @nextcloud/dialogs sur toutes les actions, confirm avant suppression liste, maxlength 255 PHP+HTML, bouton "Clear all" pour items cochés.
