@@ -33,4 +33,16 @@ class ListEntity extends Entity {
         $this->addType('createdAt', 'integer');
         $this->addType('updatedAt', 'integer');
     }
+
+    public function jsonSerialize(): array {
+        return [
+            'id'          => $this->getId(),
+            'uid'         => $this->getUid(),
+            'name'        => $this->getName(),
+            'description' => $this->getDescription(),
+            'icon'        => $this->getIcon(),
+            'createdAt'   => $this->getCreatedAt(),
+            'updatedAt'   => $this->getUpdatedAt(),
+        ];
+    }
 }

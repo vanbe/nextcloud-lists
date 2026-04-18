@@ -45,4 +45,6 @@ docker compose -f docker-compose.dev.yml exec nextcloud chown www-data:www-data 
 ```
 En NC33+, `maintenance:install` n'existe plus — l'entrypoint Docker installe NC automatiquement via les variables d'environnement. Ce fix (chown) est à rejouer uniquement après un `docker compose down -v`.
 
+**4.16 — OPcache en dev Docker.** PHP OPcache cache les fichiers compilés en mémoire. Quand tu modifies des fichiers PHP dans l'app, les routes ou les classes restent en cache jusqu'au prochain restart Apache/PHP-FPM. Si une route nouvellement déclarée retourne OCS 998 alors que tout semble correct, un `docker compose restart nextcloud` vide l'OPcache et suffit à résoudre le problème.
+
 ---
