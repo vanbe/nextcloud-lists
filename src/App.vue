@@ -13,6 +13,7 @@
 				:class="{ 'lists-nav__item--active': list.id === store.selectedId }"
 				@click="store.select(list.id)">
 				<span class="lists-nav__name">{{ list.name }}</span>
+				<span v-if="list.activeItemCount > 0" class="lists-nav__count">{{ list.activeItemCount }}</span>
 				<button
 					class="lists-nav__actions"
 					:title="t('lists', 'Actions')"
@@ -148,6 +149,16 @@ export default {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+.lists-nav__count {
+	font-size: 0.75em;
+	background: var(--color-primary);
+	color: var(--color-primary-text);
+	border-radius: 10px;
+	padding: 1px 7px;
+	min-width: 20px;
+	text-align: center;
+	flex-shrink: 0;
 }
 .lists-nav__actions {
 	background: none;

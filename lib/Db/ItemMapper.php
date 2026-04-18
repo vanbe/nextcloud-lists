@@ -66,6 +66,37 @@ class ItemMapper extends QBMapper {
         return $this->findEntities($qb);
     }
 
+    /**
+     * Returns [listId => uncheckedCount] for the given list IDs in a single query.
+     *
+     * @param int[] $listIds
+     * @return array<int,int>
+     */
+    public function countUncheckedByLists(array $listIds): array {
+        if (empty($listIds)) {
+            return [];
+        }
+        $qb = $this->db->getQueryBuilder();
+        $params = array_map(
+            fn($id) => $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT),
+            $listIds
+        );
+        $qb->select('list_id')
+            ->selectAlias($qb->createFunction('COUNT(*)'), 'cnt')
+            ->from($this->getTableName())
+            ->where($qb->expr()->in('list_id', $params))
+            ->andWhere($qb->expr()->eq('checked', $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT)))
+            ->groupBy('list_id');
+
+        $result = $qb->executeQuery();
+        $counts = [];
+        while ($row = $result->fetch()) {
+            $counts[(int) $row['list_id']] = (int) $row['cnt'];
+        }
+        $result->closeCursor();
+        return $counts;
+    }
+
     public function nullifyCategory(int $categoryId): void {
         $qb = $this->db->getQueryBuilder();
         $qb->update($this->getTableName())

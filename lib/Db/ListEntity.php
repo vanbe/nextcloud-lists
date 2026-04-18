@@ -28,21 +28,33 @@ class ListEntity extends Entity {
     protected int $createdAt = 0;
     protected int $updatedAt = 0;
 
+    // Virtual field — not persisted, computed on read
+    private int $activeItemCount = 0;
+
     public function __construct() {
         $this->addType('id', 'integer');
         $this->addType('createdAt', 'integer');
         $this->addType('updatedAt', 'integer');
     }
 
+    public function getActiveItemCount(): int {
+        return $this->activeItemCount;
+    }
+
+    public function setActiveItemCount(int $count): void {
+        $this->activeItemCount = $count;
+    }
+
     public function jsonSerialize(): array {
         return [
-            'id'          => $this->getId(),
-            'uid'         => $this->getUid(),
-            'name'        => $this->getName(),
-            'description' => $this->getDescription(),
-            'icon'        => $this->getIcon(),
-            'createdAt'   => $this->getCreatedAt(),
-            'updatedAt'   => $this->getUpdatedAt(),
+            'id'              => $this->getId(),
+            'uid'             => $this->getUid(),
+            'name'            => $this->getName(),
+            'description'     => $this->getDescription(),
+            'icon'            => $this->getIcon(),
+            'activeItemCount' => $this->activeItemCount,
+            'createdAt'       => $this->getCreatedAt(),
+            'updatedAt'       => $this->getUpdatedAt(),
         ];
     }
 }

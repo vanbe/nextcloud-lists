@@ -24,10 +24,20 @@ class ListService {
         private readonly IUserManager  $userManager,
     ) {}
 
-    /** @return ListEntity[] owned + shared */
+    /** @return ListEntity[] owned + shared, with activeItemCount populated */
     public function findAll(string $uid): array {
         $groups = $this->getUserGroups($uid);
-        return $this->mapper->findAllForUser($uid, $groups);
+        $lists  = $this->mapper->findAllForUser($uid, $groups);
+
+        if (!empty($lists)) {
+            $ids    = array_map(fn($l) => $l->getId(), $lists);
+            $counts = $this->itemMapper->countUncheckedByLists($ids);
+            foreach ($lists as $list) {
+                $list->setActiveItemCount($counts[$list->getId()] ?? 0);
+            }
+        }
+
+        return $lists;
     }
 
     /** @throws NotFoundException|ForbiddenException */

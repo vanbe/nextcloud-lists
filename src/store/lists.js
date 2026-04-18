@@ -59,5 +59,18 @@ export const useListsStore = defineStore('lists', {
 		select(id) {
 			this.selectedId = id
 		},
+
+		// Called after item toggle/create/delete to keep sidebar counts in sync
+		async refreshCounts() {
+			try {
+				const fresh = await listsApi.getAll()
+				fresh.forEach((updated) => {
+					const idx = this.lists.findIndex((l) => l.id === updated.id)
+					if (idx !== -1) this.lists[idx] = { ...this.lists[idx], activeItemCount: updated.activeItemCount }
+				})
+			} catch {
+				// non-critical, ignore
+			}
+		},
 	},
 })

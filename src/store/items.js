@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { showError } from '@nextcloud/dialogs'
 import { translate as t } from '@nextcloud/l10n'
 import { itemsApi } from '../services/api.js'
+import { useListsStore } from './lists.js'
 
 export const useItemsStore = defineStore('items', {
 	state: () => ({
@@ -44,6 +45,7 @@ export const useItemsStore = defineStore('items', {
 			try {
 				const item = await itemsApi.create(listId, title, categoryId)
 				this.items.push(item)
+				useListsStore().refreshCounts()
 			} catch {
 				showError(t('lists', 'Could not add item'))
 			}
@@ -65,6 +67,7 @@ export const useItemsStore = defineStore('items', {
 				const item = await itemsApi.toggle(listId, id)
 				const idx = this.items.findIndex((i) => i.id === id)
 				if (idx !== -1) this.items[idx] = item
+				useListsStore().refreshCounts()
 			} catch {
 				showError(t('lists', 'Could not update item'))
 			}
@@ -74,6 +77,7 @@ export const useItemsStore = defineStore('items', {
 			try {
 				await itemsApi.destroy(listId, id)
 				this.items = this.items.filter((i) => i.id !== id)
+				useListsStore().refreshCounts()
 			} catch {
 				showError(t('lists', 'Could not delete item'))
 			}
