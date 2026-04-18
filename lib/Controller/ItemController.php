@@ -68,10 +68,11 @@ class ItemController extends OCSController {
 
     #[NoAdminRequired]
     public function update(int $listId, int $id, ?string $title = null, ?string $description = null, mixed $categoryId = false): DataResponse {
-        // categoryId: false = not provided, null = unassign, int = assign
+        // categoryId: false = not provided; null or 0 = unassign (0 is sentinel because NC's
+        // IRequest::getParam uses isset() which treats JSON null as missing); int > 0 = assign
         $resolvedCategory = false;
         if ($categoryId !== false) {
-            $resolvedCategory = $categoryId === null ? null : (int) $categoryId;
+            $resolvedCategory = ($categoryId === null || $categoryId === 0) ? null : (int) $categoryId;
         }
         try {
             $entity = $this->service->update($id, $listId, $this->userId, $title, $description, $resolvedCategory);
