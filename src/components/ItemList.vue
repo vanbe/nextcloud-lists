@@ -30,7 +30,10 @@
 			</li>
 
 			<li v-if="store.checked.length" class="item-list__separator">
-				{{ t('lists', 'Checked') }}
+				<span>{{ t('lists', 'Checked') }}</span>
+				<button class="item-list__clear-checked" @click="clearChecked">
+					{{ t('lists', 'Clear all') }}
+				</button>
 			</li>
 
 			<li
@@ -101,6 +104,11 @@ export default {
 			this.scrollToItem(item.id)
 		},
 
+		async clearChecked() {
+			const checked = [...this.store.checked]
+			await Promise.all(checked.map((item) => this.store.destroy(this.listId, item.id)))
+		},
+
 		scrollToItem(id) {
 			const el = this.$refs.listEl?.querySelector(`[data-item-id="${id}"]`)
 			if (el) {
@@ -159,12 +167,30 @@ export default {
 }
 .item-list__separator {
 	list-style: none;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
 	padding: 12px 4px 4px;
 	font-size: 0.85em;
 	color: var(--color-text-lighter);
 	font-weight: bold;
 	text-transform: uppercase;
 	letter-spacing: 0.05em;
+}
+.item-list__clear-checked {
+	background: none;
+	border: none;
+	cursor: pointer;
+	font-size: 0.9em;
+	font-weight: normal;
+	text-transform: none;
+	letter-spacing: 0;
+	color: var(--color-error);
+	padding: 2px 6px;
+	border-radius: var(--border-radius);
+}
+.item-list__clear-checked:hover {
+	background: var(--color-background-hover);
 }
 .item-list__loading,
 .item-list__error {

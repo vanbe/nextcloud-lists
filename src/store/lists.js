@@ -1,4 +1,6 @@
 import { defineStore } from 'pinia'
+import { showError, showSuccess } from '@nextcloud/dialogs'
+import { translate as t } from '@nextcloud/l10n'
 import { listsApi } from '../services/api.js'
 
 export const useListsStore = defineStore('lists', {
@@ -24,22 +26,33 @@ export const useListsStore = defineStore('lists', {
 				}
 			} catch (e) {
 				this.error = e.message
+				showError(t('lists', 'Could not load lists'))
 			} finally {
 				this.loading = false
 			}
 		},
 
 		async create(name) {
-			const list = await listsApi.create(name)
-			this.lists.push(list)
-			this.selectedId = list.id
+			try {
+				const list = await listsApi.create(name)
+				this.lists.push(list)
+				this.selectedId = list.id
+				showSuccess(t('lists', 'List created'))
+			} catch {
+				showError(t('lists', 'Could not create list'))
+			}
 		},
 
 		async destroy(id) {
-			await listsApi.destroy(id)
-			this.lists = this.lists.filter((l) => l.id !== id)
-			if (this.selectedId === id) {
-				this.selectedId = this.lists[0]?.id ?? null
+			try {
+				await listsApi.destroy(id)
+				this.lists = this.lists.filter((l) => l.id !== id)
+				if (this.selectedId === id) {
+					this.selectedId = this.lists[0]?.id ?? null
+				}
+				showSuccess(t('lists', 'List deleted'))
+			} catch {
+				showError(t('lists', 'Could not delete list'))
 			}
 		},
 

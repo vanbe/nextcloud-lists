@@ -8,6 +8,7 @@
 				type="text"
 				:placeholder="t('lists', 'Add an item…')"
 				autocomplete="off"
+				maxlength="255"
 				@input="onInput"
 				@keydown.enter.prevent="onEnter"
 				@keydown.arrow-down.prevent="moveFocus(1)"

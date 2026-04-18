@@ -51,6 +51,7 @@
 
 <script>
 import { translate as t } from '@nextcloud/l10n'
+import { showError, showSuccess } from '@nextcloud/dialogs'
 import { sharesApi } from '../services/api.js'
 import UserGroupSearch from './UserGroupSearch.vue'
 
@@ -120,8 +121,11 @@ export default {
 				)
 				this.shares.push(share)
 				this.pending = null
+				showSuccess(t('lists', 'Shared successfully'))
 			} catch (e) {
-				this.error = e.response?.data?.ocs?.meta?.message || e.message
+				const msg = e.response?.data?.ocs?.meta?.message || e.message
+				this.error = msg
+				showError(msg)
 			}
 		},
 
@@ -130,8 +134,10 @@ export default {
 				const updated = await sharesApi.update(this.list.id, share.id, permissions)
 				const idx = this.shares.findIndex((s) => s.id === share.id)
 				if (idx !== -1) this.shares[idx] = updated
+				showSuccess(t('lists', 'Permissions updated'))
 			} catch (e) {
 				this.error = e.message
+				showError(t('lists', 'Could not update permissions'))
 			}
 		},
 
@@ -139,8 +145,10 @@ export default {
 			try {
 				await sharesApi.destroy(this.list.id, share.id)
 				this.shares = this.shares.filter((s) => s.id !== share.id)
+				showSuccess(t('lists', 'Share removed'))
 			} catch (e) {
 				this.error = e.message
+				showError(t('lists', 'Could not remove share'))
 			}
 		},
 	},

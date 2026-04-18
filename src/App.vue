@@ -102,13 +102,14 @@ export default {
 
 		async onDelete(list) {
 			this.openMenuId = null
+			if (!window.confirm(t('lists', 'Delete "{name}"? This will permanently remove all its items.', { name: list.name }))) return
 			await this.store.destroy(list.id)
 		},
 
 		async onNewList() {
-			const name = window.prompt(t('lists', 'List name'))
+			const name = window.prompt(t('lists', 'List name (max 255 characters)'))
 			if (name?.trim()) {
-				await this.store.create(name.trim())
+				await this.store.create(name.trim().slice(0, 255))
 			}
 		},
 	},

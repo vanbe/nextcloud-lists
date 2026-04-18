@@ -53,6 +53,9 @@ class ItemController extends OCSController {
         if (trim($title) === '') {
             return new DataResponse(['message' => 'Title is required'], Http::STATUS_BAD_REQUEST);
         }
+        if (mb_strlen($title) > 255) {
+            return new DataResponse(['message' => 'Title too long (max 255)'], Http::STATUS_BAD_REQUEST);
+        }
         try {
             $entity = $this->service->create($listId, $this->userId, $title, $description);
             return new DataResponse($entity->jsonSerialize(), Http::STATUS_CREATED);

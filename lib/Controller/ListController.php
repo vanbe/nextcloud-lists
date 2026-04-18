@@ -34,6 +34,9 @@ class ListController extends OCSController {
         if (trim($name) === '') {
             return new DataResponse(['message' => 'Name is required'], Http::STATUS_BAD_REQUEST);
         }
+        if (mb_strlen($name) > 255) {
+            return new DataResponse(['message' => 'Name too long (max 255)'], Http::STATUS_BAD_REQUEST);
+        }
         $entity = $this->service->create($this->userId, $name, $description, $icon);
         return new DataResponse($entity->jsonSerialize(), Http::STATUS_CREATED);
     }
