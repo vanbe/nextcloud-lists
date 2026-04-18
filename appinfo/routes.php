@@ -11,6 +11,7 @@ return [
         ['name' => 'list#update',  'url' => '/api/v1/lists/{id}', 'verb' => 'PUT'],
         ['name' => 'list#destroy', 'url' => '/api/v1/lists/{id}', 'verb' => 'DELETE'],
 
+        ['name' => 'item#suggest', 'url' => '/api/v1/lists/{listId}/items/suggest',     'verb' => 'GET'],
         ['name' => 'item#index',   'url' => '/api/v1/lists/{listId}/items',            'verb' => 'GET'],
         ['name' => 'item#create',  'url' => '/api/v1/lists/{listId}/items',            'verb' => 'POST'],
         ['name' => 'item#update',  'url' => '/api/v1/lists/{listId}/items/{id}',       'verb' => 'PUT'],

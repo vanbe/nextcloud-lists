@@ -1,16 +1,6 @@
 <template>
 	<div class="item-list">
-		<form class="item-list__add" @submit.prevent="onAdd">
-			<input
-				v-model="newTitle"
-				class="item-list__input"
-				type="text"
-				:placeholder="t('lists', 'Add an item…')"
-			/>
-			<button class="item-list__add-btn" type="submit" :disabled="!newTitle.trim()">
-				{{ t('lists', 'Add') }}
-			</button>
-		</form>
+		<ItemInput :list-id="listId" @add="onAdd" @select-suggestion="onSelectSuggestion" />
 
 		<div v-if="store.loading" class="item-list__loading">
 			{{ t('lists', 'Loading…') }}
@@ -18,10 +8,11 @@
 		<div v-else-if="store.error" class="item-list__error">
 			{{ store.error }}
 		</div>
-		<ul v-else class="item-list__items">
+		<ul v-else ref="listEl" class="item-list__items">
 			<li
 				v-for="item in store.unchecked"
 				:key="item.id"
+				:data-item-id="item.id"
 				class="item-list__item">
 				<input
 					type="checkbox"
@@ -45,6 +36,7 @@
 			<li
 				v-for="item in store.checked"
 				:key="item.id"
+				:data-item-id="item.id"
 				class="item-list__item item-list__item--checked">
 				<input
 					type="checkbox"
@@ -65,27 +57,24 @@
 </template>
 
 <script>
+import { nextTick } from 'vue'
 import { translate as t } from '@nextcloud/l10n'
 import { useItemsStore } from '../store/items.js'
+import ItemInput from './ItemInput.vue'
 
 export default {
 	name: 'ItemList',
 
+	components: { ItemInput },
+
 	props: {
-		listId: {
-			type: Number,
-			required: true,
-		},
+		listId: { type: Number, required: true },
 	},
 
 	setup(props) {
 		const store = useItemsStore()
 		store.fetchAll(props.listId)
 		return { store }
-	},
-
-	data() {
-		return { newTitle: '' }
 	},
 
 	watch: {
@@ -98,11 +87,27 @@ export default {
 	methods: {
 		t,
 
-		async onAdd() {
-			const title = this.newTitle.trim()
-			if (!title) return
-			this.newTitle = ''
+		async onAdd(title) {
 			await this.store.create(this.listId, title)
+		},
+
+		async onSelectSuggestion(item) {
+			// If checked → uncheck it first
+			if (item.checked) {
+				await this.store.toggle(this.listId, item.id)
+			}
+			// After DOM update, scroll to the item and give it focus
+			await nextTick()
+			this.scrollToItem(item.id)
+		},
+
+		scrollToItem(id) {
+			const el = this.$refs.listEl?.querySelector(`[data-item-id="${id}"]`)
+			if (el) {
+				el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+				el.classList.add('item-list__item--highlight')
+				setTimeout(() => el.classList.remove('item-list__item--highlight'), 1200)
+			}
 		},
 	},
 }
@@ -112,34 +117,9 @@ export default {
 .item-list {
 	padding: 24px;
 }
-.item-list__add {
-	display: flex;
-	gap: 8px;
-	margin-bottom: 16px;
-}
-.item-list__input {
-	flex: 1;
-	padding: 8px 12px;
-	border: 1px solid var(--color-border);
-	border-radius: var(--border-radius);
-	background: var(--color-main-background);
-	color: var(--color-main-text);
-}
-.item-list__add-btn {
-	padding: 8px 16px;
-	background: var(--color-primary);
-	color: var(--color-primary-text);
-	border: none;
-	border-radius: var(--border-radius);
-	cursor: pointer;
-}
-.item-list__add-btn:disabled {
-	opacity: 0.5;
-	cursor: default;
-}
 .item-list__items {
 	list-style: none;
-	margin: 0;
+	margin: 8px 0 0;
 	padding: 0;
 }
 .item-list__item {
@@ -148,6 +128,10 @@ export default {
 	gap: 8px;
 	padding: 8px 4px;
 	border-bottom: 1px solid var(--color-border-dark);
+	transition: background 0.3s;
+}
+.item-list__item--highlight {
+	background: var(--color-primary-light, #e8f4ff);
 }
 .item-list__item:hover .item-list__delete {
 	opacity: 1;

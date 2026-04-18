@@ -44,6 +44,28 @@ class ItemMapper extends QBMapper {
         return $this->findEntities($qb);
     }
 
+    /**
+     * Suggest items whose title starts with $q (case-insensitive), max 5.
+     * Unchecked items come first, then most-recently-checked.
+     *
+     * @return ItemEntity[]
+     */
+    public function suggest(int $listId, string $q): array {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('*')
+            ->from($this->getTableName())
+            ->where($qb->expr()->eq('list_id', $qb->createNamedParameter($listId, IQueryBuilder::PARAM_INT)))
+            ->andWhere($qb->expr()->like(
+                $qb->createFunction('LOWER(title)'),
+                $qb->createNamedParameter(mb_strtolower($q) . '%')
+            ))
+            ->orderBy('checked', 'ASC')
+            ->addOrderBy('checked_at', 'DESC')
+            ->setMaxResults(5);
+
+        return $this->findEntities($qb);
+    }
+
     public function deleteAllForList(int $listId): void {
         $qb = $this->db->getQueryBuilder();
         $qb->delete($this->getTableName())

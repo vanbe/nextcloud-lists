@@ -19,6 +19,8 @@ export const sharesApi = {
 }
 
 export const itemsApi = {
+	suggest: (listId, q) =>
+		axios.get(`${BASE}/lists/${listId}/items/suggest?format=json&q=${encodeURIComponent(q)}`, { headers: OCS_HEADERS }).then(unwrap),
 	getAll: (listId) =>
 		axios.get(`${BASE}/lists/${listId}/items?format=json`, { headers: OCS_HEADERS }).then(unwrap),
 	create: (listId, title) =>

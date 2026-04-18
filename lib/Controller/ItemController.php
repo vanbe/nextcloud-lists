@@ -34,6 +34,21 @@ class ItemController extends OCSController {
     }
 
     #[NoAdminRequired]
+    public function suggest(int $listId, string $q = ''): DataResponse {
+        if (mb_strlen($q) < 2) {
+            return new DataResponse([]);
+        }
+        try {
+            $items = $this->service->suggest($listId, $this->userId, $q);
+            return new DataResponse(array_map(fn($i) => $i->jsonSerialize(), $items));
+        } catch (NotFoundException) {
+            return new DataResponse(['message' => 'List not found'], Http::STATUS_NOT_FOUND);
+        } catch (ForbiddenException) {
+            return new DataResponse(['message' => 'Forbidden'], Http::STATUS_FORBIDDEN);
+        }
+    }
+
+    #[NoAdminRequired]
     public function create(int $listId, string $title, ?string $description = null): DataResponse {
         if (trim($title) === '') {
             return new DataResponse(['message' => 'Title is required'], Http::STATUS_BAD_REQUEST);

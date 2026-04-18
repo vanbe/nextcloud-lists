@@ -21,6 +21,15 @@ class ItemService {
         return $this->itemMapper->findAll($listId);
     }
 
+    /**
+     * @return ItemEntity[]
+     * @throws NotFoundException|ForbiddenException
+     */
+    public function suggest(int $listId, string $uid, string $q): array {
+        $this->permissionService->getAccessibleList($listId, $uid);
+        return $this->itemMapper->suggest($listId, $q);
+    }
+
     /** @throws NotFoundException|ForbiddenException */
     public function create(int $listId, string $uid, string $title, ?string $description = null): ItemEntity {
         if (!$this->permissionService->canWrite($listId, $uid)) {
