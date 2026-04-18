@@ -95,13 +95,14 @@ class ListMapper extends QBMapper {
             );
         }
 
-        $qb->selectDistinct('l.*')
+        $qb->select('l.*')
             ->from($l, 'l')
             ->leftJoin('l', $s, 's', $joinCondition)
             ->where($qb->expr()->orX(
                 $qb->expr()->eq('l.uid', $qb->createNamedParameter($uid)),
                 $qb->expr()->isNotNull('s.id')
             ))
+            ->groupBy('l.id')
             ->orderBy('l.name', 'ASC');
 
         return $this->findEntities($qb);

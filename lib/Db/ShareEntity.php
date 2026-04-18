@@ -28,9 +28,10 @@ class ShareEntity extends Entity {
     public const PERM_WRITE = 3;
 
     protected int $listId = 0;
-    protected int $shareType = 0;
+    // -1 as sentinel: NC Entity::setter() skips unchanged values, so real values (0,1) must differ from init
+    protected int $shareType = -1;
     protected string $shareWith = '';
-    protected int $permissions = self::PERM_READ;
+    protected int $permissions = -1;
     protected int $createdAt = 0;
 
     public function __construct() {
