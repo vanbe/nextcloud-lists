@@ -1,0 +1,14 @@
+{
+    "name": "charlesvanbeneden/nextcloud-lists",
+    "description": "TODO and shopping lists for Nextcloud",
+    "type": "nextcloud-app",
+    "license": "AGPL-3.0-or-later",
+    "require": {
+        "php": ">=8.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "OCA\\Lists\\": "lib/"
+        }
+    }
+}
