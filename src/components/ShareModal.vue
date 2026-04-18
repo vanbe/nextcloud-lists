@@ -7,29 +7,26 @@
 			</div>
 
 			<div class="modal-card__body">
-				<form class="share-form" @submit.prevent="onAdd">
-					<select v-model="newType" class="share-form__select">
-						<option :value="0">{{ t('lists', 'User') }}</option>
-						<option :value="1">{{ t('lists', 'Group') }}</option>
-					</select>
-					<input
-						v-model="newWith"
-						class="share-form__input"
-						type="text"
-						:placeholder="t('lists', 'Username or group…')"
-						autofocus
-					/>
-					<select v-model="newPerms" class="share-form__select">
-						<option :value="1">{{ t('lists', 'Read') }}</option>
-						<option :value="3">{{ t('lists', 'Read & write') }}</option>
-					</select>
-					<button class="share-form__btn" type="submit" :disabled="!newWith.trim()">
-						{{ t('lists', 'Add') }}
-					</button>
-				</form>
+				<!-- Search row -->
+				<div class="share-add">
+					<UserGroupSearch ref="search" @select="onSearchSelect" />
+					<div v-if="pending" class="share-add__pending">
+						<span class="share-list__badge">
+							{{ pending.type === 0 ? t('lists', 'User') : t('lists', 'Group') }}
+						</span>
+						<span class="share-add__name">{{ pending.displayName }}</span>
+						<select v-model="pendingPerms" class="share-form__select share-form__select--sm">
+							<option :value="1">{{ t('lists', 'Read') }}</option>
+							<option :value="3">{{ t('lists', 'Read & write') }}</option>
+						</select>
+						<button class="share-add__confirm" @click="confirmAdd">{{ t('lists', 'Share') }}</button>
+						<button class="share-add__cancel" @click="pending = null">✕</button>
+					</div>
+				</div>
 
 				<p v-if="error" class="share-form__error">{{ error }}</p>
 
+				<!-- Existing shares -->
 				<ul v-if="shares.length" class="share-list">
 					<li v-for="share in shares" :key="share.id" class="share-list__item">
 						<span class="share-list__badge">
@@ -55,9 +52,12 @@
 <script>
 import { translate as t } from '@nextcloud/l10n'
 import { sharesApi } from '../services/api.js'
+import UserGroupSearch from './UserGroupSearch.vue'
 
 export default {
 	name: 'ShareModal',
+
+	components: { UserGroupSearch },
 
 	props: {
 		list: { type: Object, required: true },
@@ -70,9 +70,8 @@ export default {
 			shares: [],
 			loading: false,
 			error: null,
-			newType: 0,
-			newWith: '',
-			newPerms: 1,
+			pending: null,     // { type, id, displayName }
+			pendingPerms: 1,
 		}
 	},
 
@@ -103,14 +102,24 @@ export default {
 			}
 		},
 
-		async onAdd() {
-			const with_ = this.newWith.trim()
-			if (!with_) return
+		onSearchSelect(result) {
+			this.pending = result
+			this.pendingPerms = 1
+			this.error = null
+		},
+
+		async confirmAdd() {
+			if (!this.pending) return
 			this.error = null
 			try {
-				const share = await sharesApi.create(this.list.id, this.newType, with_, this.newPerms)
+				const share = await sharesApi.create(
+					this.list.id,
+					this.pending.type,
+					this.pending.id,
+					this.pendingPerms,
+				)
 				this.shares.push(share)
-				this.newWith = ''
+				this.pending = null
 			} catch (e) {
 				this.error = e.response?.data?.ocs?.meta?.message || e.message
 			}
@@ -152,7 +161,7 @@ export default {
 	background: var(--color-main-background);
 	border-radius: var(--border-radius-large);
 	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-	width: 480px;
+	width: 500px;
 	max-width: calc(100vw - 32px);
 	max-height: calc(100vh - 64px);
 	display: flex;
@@ -186,23 +195,39 @@ export default {
 	padding: 16px 20px 20px;
 	overflow-y: auto;
 }
-.share-form {
-	display: flex;
-	gap: 6px;
-	flex-wrap: wrap;
+.share-add {
 	margin-bottom: 16px;
 }
-.share-form__input {
-	flex: 1;
-	min-width: 120px;
-	padding: 7px 10px;
-	border: 1px solid var(--color-border);
+.share-add__pending {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 10px;
+	padding: 8px 12px;
+	background: var(--color-background-hover);
 	border-radius: var(--border-radius);
-	background: var(--color-main-background);
-	color: var(--color-main-text);
+}
+.share-add__name {
+	flex: 1;
+	font-weight: 500;
+}
+.share-add__confirm {
+	padding: 5px 12px;
+	background: var(--color-primary);
+	color: var(--color-primary-text);
+	border: none;
+	border-radius: var(--border-radius);
+	cursor: pointer;
+}
+.share-add__cancel {
+	background: none;
+	border: none;
+	cursor: pointer;
+	color: var(--color-text-lighter);
+	padding: 4px 8px;
 }
 .share-form__select {
-	padding: 7px 8px;
+	padding: 6px 8px;
 	border: 1px solid var(--color-border);
 	border-radius: var(--border-radius);
 	background: var(--color-main-background);
@@ -212,18 +237,6 @@ export default {
 .share-form__select--sm {
 	font-size: 0.85em;
 	padding: 4px 6px;
-}
-.share-form__btn {
-	padding: 7px 16px;
-	background: var(--color-primary);
-	color: var(--color-primary-text);
-	border: none;
-	border-radius: var(--border-radius);
-	cursor: pointer;
-}
-.share-form__btn:disabled {
-	opacity: 0.5;
-	cursor: default;
 }
 .share-form__error {
 	color: var(--color-error);

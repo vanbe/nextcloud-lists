@@ -27,8 +27,8 @@ AVANT de coder une nouvelle partie, lis le doc correspondant :
 6. Si tu bloques : lis les logs du container avant de tenter un workaround.
 
 ## État actuel
-Jalon en cours : **7 — Autocomplete d'items**
-Dernier commit : `feat(jalon-6): partage via menu ⋮ + modale native`
+Jalon en cours : **8 — Modale de partage + recherche user/groupe**
+Dernier commit : `feat(jalon-7): autocomplete items — suggest endpoint + ItemInput.vue`
 
 ### Pièges découverts (à ne pas réintroduire)
 - `NcAppContent` ne rend pas son slot par défaut dans @vue/compat MODE:2 → remplacé par `<main id="app-content">` natif.
@@ -42,3 +42,4 @@ Dernier commit : `feat(jalon-6): partage via menu ⋮ + modale native`
 - ✅ **4 — SPA frontend minimale** : `package.json`, `webpack.config.js`, `src/main.js`, `App.vue` (NcAppNavigation + main#app-content), store Pinia (`lists.js`), service API (`api.js`). Build webpack OK, app Vue montée dans NC.
 - ✅ **5 — Items CRUD + toggle** : `ItemEntity`, `ItemMapper`, `ItemService`, `ItemController`, routes OCS imbriquées, `itemsApi`, store `items.js`, `ItemList.vue` (ajout/toggle/suppression, tri cochés/non-cochés). Piège layout NC résolu.
 - ✅ **6 — Partage** : `ShareEntity`/`ShareMapper` (sentinelle -1 obligatoire sur int), `PermissionService` (IGroupManager + IUserManager), `ShareService`/`ShareController`, `ListMapper.findAllForUser` (LEFT JOIN + GROUP BY — pas EXISTS), menu ⋮ sidebar + `ShareModal.vue`.
+- ✅ **7 — Autocomplete items** : `ItemMapper.suggest()` (LOWER LIKE), route `GET /items/suggest`, `ItemInput.vue` (debounce 150ms, min 2 chars, ↑↓ Enter Esc), scroll+highlight+uncheck sur sélection suggestion.

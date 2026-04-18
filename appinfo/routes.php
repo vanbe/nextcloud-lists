@@ -18,6 +18,9 @@ return [
         ['name' => 'item#toggle',  'url' => '/api/v1/lists/{listId}/items/{id}/toggle','verb' => 'POST'],
         ['name' => 'item#destroy', 'url' => '/api/v1/lists/{listId}/items/{id}',       'verb' => 'DELETE'],
 
+        ['name' => 'user#search_users',  'url' => '/api/v1/users/search',  'verb' => 'GET'],
+        ['name' => 'user#search_groups', 'url' => '/api/v1/groups/search', 'verb' => 'GET'],
+
         ['name' => 'share#index',   'url' => '/api/v1/lists/{listId}/shares',      'verb' => 'GET'],
         ['name' => 'share#create',  'url' => '/api/v1/lists/{listId}/shares',      'verb' => 'POST'],
         ['name' => 'share#update',  'url' => '/api/v1/lists/{listId}/shares/{id}', 'verb' => 'PUT'],

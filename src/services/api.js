@@ -7,6 +7,13 @@ function unwrap(response) {
 	return response.data.ocs.data
 }
 
+export const usersApi = {
+	searchUsers: (q) =>
+		axios.get(`${BASE}/users/search?format=json&q=${encodeURIComponent(q)}`, { headers: OCS_HEADERS }).then(unwrap),
+	searchGroups: (q) =>
+		axios.get(`${BASE}/groups/search?format=json&q=${encodeURIComponent(q)}`, { headers: OCS_HEADERS }).then(unwrap),
+}
+
 export const sharesApi = {
 	getAll: (listId) =>
 		axios.get(`${BASE}/lists/${listId}/shares?format=json`, { headers: OCS_HEADERS }).then(unwrap),
