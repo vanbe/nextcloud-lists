@@ -6,7 +6,7 @@ Application Nextcloud de TODO / listes de courses, avec partage user/groupe.
 - Backend : PHP 8.2, framework Nextcloud (NC 30+)
 - Frontend : Vue 3 + @nextcloud/vue + Pinia
 - DB : abstraction QBMapper (SQLite en dev, MariaDB/PG en prod)
-- Dev env : Docker (nextcloud:30-apache) + WSL Ubuntu
+- Dev env : Docker (nextcloud:33-apache) + WSL Ubuntu
 
 ## Documentation du projet
 AVANT de coder une nouvelle partie, lis le doc correspondant :
@@ -27,5 +27,10 @@ AVANT de coder une nouvelle partie, lis le doc correspondant :
 6. Si tu bloques : lis les logs du container avant de tenter un workaround.
 
 ## État actuel
-Jalon en cours : **1 — Squelette + enable**
-Dernier commit : (aucun)
+Jalon en cours : **4 — SPA frontend minimale**
+Dernier commit : `feat(jalon-3): API Lists CRUD (ListController + ListService)`
+
+### Jalons terminés
+- ✅ **1 — Squelette + enable** : `info.xml`, `Application.php`, `PageController`, template `index.php`, icône, Docker, Makefile.
+- ✅ **2 — DB + entités + mappers** : migration 3 tables (`lists`, `lists_items`, `lists_shares`), `ListEntity`/`ListMapper`, exceptions, `occ lists:debug:seed`, tests PHPUnit.
+- ✅ **3 — API Lists CRUD** : `ListService`, `ListController` (OCSController), routes OCS, validé par cURL (GET/POST/PUT/DELETE + 404/403).
