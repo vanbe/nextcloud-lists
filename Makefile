@@ -36,8 +36,8 @@ docker-logs:
 	$(DC) logs -f
 
 docker-install:
+	# NC33+: the entrypoint auto-installs via env vars; just fix perms and enable the app
 	$(DC) exec nextcloud chown www-data:www-data /var/www/html/custom_apps
-	$(OCC) maintenance:install --database sqlite --database-name nextcloud --admin-user admin --admin-pass admin
 	$(OCC) config:system:set apps_paths 1 path --value=/var/www/html/custom_apps
 	$(OCC) app:enable lists
 

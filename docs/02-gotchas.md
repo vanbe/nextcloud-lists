@@ -42,8 +42,7 @@
 **4.13 — Permissions `custom_apps` au premier boot Docker.** Le bind mount `./:/var/www/html/custom_apps/lists` force Docker à créer `/var/www/html/custom_apps` appartenant à `root:root`. Nextcloud ne peut alors pas y écrire et boucle sur "Retrying install...". Fix après `docker compose up` :
 ```bash
 docker compose -f docker-compose.dev.yml exec nextcloud chown www-data:www-data /var/www/html/custom_apps
-docker compose -f docker-compose.dev.yml exec --user www-data nextcloud php occ maintenance:install --database sqlite --database-name nextcloud --admin-user admin --admin-pass admin
 ```
-Ce fix est à rejouer uniquement après un `docker compose down -v` (reset du volume).
+En NC33+, `maintenance:install` n'existe plus — l'entrypoint Docker installe NC automatiquement via les variables d'environnement. Ce fix (chown) est à rejouer uniquement après un `docker compose down -v`.
 
 ---

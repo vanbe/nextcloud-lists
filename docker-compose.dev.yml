@@ -1,6 +1,6 @@
 services:
   nextcloud:
-    image: nextcloud:30-apache
+    image: nextcloud:33-apache
     ports:
       - "8080:80"
     environment:
