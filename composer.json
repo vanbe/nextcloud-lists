@@ -10,5 +10,13 @@
         "psr-4": {
             "OCA\\Lists\\": "lib/"
         }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "OCA\\Lists\\Tests\\": "tests/php/"
+        }
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10"
     }
 }

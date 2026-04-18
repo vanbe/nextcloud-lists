@@ -35,6 +35,10 @@
 
 **4.12 — Sécurité XSS.** Titres et descriptions d'items sont du texte brut, jamais de HTML. Vue 3 échappe par défaut, **n'utilise jamais `v-html`** sur ces champs.
 
+**4.15 — Commandes OCC : `register_command.php`, pas `console.php`.** En NC30, le fichier de déclaration des commandes OCC d'une app est `appinfo/register_command.php` (chargé par `lib/private/Console/Application.php`). La variable `$application` (Symfony Console App) et `$serverContainer` (IServerContainer) y sont injectées automatiquement. Exemple minimal : `$application->add($serverContainer->get(\OCA\Lists\Command\Foo::class));`. `IRegistrationContext::registerCommand()` n'existe pas en NC30.
+
+**4.14 — `BOOLEAN NOT NULL` interdit dans les migrations NC.** Nextcloud refuse les colonnes `BOOLEAN NOT NULL` (validation cross-DB). Utilise `Types::SMALLINT` avec `default => 0` / `1` à la place. Dans l'Entity, caste avec `$this->addType('checked', 'integer')` et expose via un getter `bool` : `return (bool) $this->checked`.
+
 **4.13 — Permissions `custom_apps` au premier boot Docker.** Le bind mount `./:/var/www/html/custom_apps/lists` force Docker à créer `/var/www/html/custom_apps` appartenant à `root:root`. Nextcloud ne peut alors pas y écrire et boucle sur "Retrying install...". Fix après `docker compose up` :
 ```bash
 docker compose -f docker-compose.dev.yml exec nextcloud chown www-data:www-data /var/www/html/custom_apps
