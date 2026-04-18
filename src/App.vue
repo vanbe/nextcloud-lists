@@ -1,5 +1,5 @@
 <template>
-	<NcAppNavigation>
+	<NcAppNavigation :aria-label="t('lists', 'Lists navigation')">
 		<template #list>
 			<li class="lists-nav__new">
 				<button class="lists-nav__new-btn" @click="onNewList">
@@ -35,10 +35,8 @@
 		</div>
 		<div v-else class="lists-view">
 			<h2>{{ store.selected.name }}</h2>
-			<p v-if="store.selected.description">{{ store.selected.description }}</p>
-			<p class="lists-placeholder">
-				{{ t('lists', 'Items coming in milestone 5.') }}
-			</p>
+			<p v-if="store.selected.description" class="lists-view__description">{{ store.selected.description }}</p>
+			<ItemList :list-id="store.selected.id" />
 		</div>
 	</NcAppContent>
 </template>
@@ -47,11 +45,12 @@
 import { NcAppContent, NcAppNavigation } from '@nextcloud/vue'
 import { translate as t } from '@nextcloud/l10n'
 import { useListsStore } from './store/lists.js'
+import ItemList from './components/ItemList.vue'
 
 export default {
 	name: 'App',
 
-	components: { NcAppContent, NcAppNavigation },
+	components: { NcAppContent, NcAppNavigation, ItemList },
 
 	setup() {
 		const store = useListsStore()
@@ -115,7 +114,16 @@ export default {
 	opacity: 1;
 }
 .lists-view {
-	padding: 24px;
+	padding: 24px 0 24px 24px;
+}
+.lists-view h2 {
+	margin: 0 0 4px;
+	padding: 0 24px 0 0;
+}
+.lists-view__description {
+	color: var(--color-text-lighter);
+	margin: 0 0 16px;
+	padding: 0 24px 0 0;
 }
 .lists-empty {
 	padding: 48px;

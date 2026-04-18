@@ -7,6 +7,19 @@ function unwrap(response) {
 	return response.data.ocs.data
 }
 
+export const itemsApi = {
+	getAll: (listId) =>
+		axios.get(`${BASE}/lists/${listId}/items?format=json`, { headers: OCS_HEADERS }).then(unwrap),
+	create: (listId, title) =>
+		axios.post(`${BASE}/lists/${listId}/items?format=json`, { title }, { headers: OCS_HEADERS }).then(unwrap),
+	update: (listId, id, fields) =>
+		axios.put(`${BASE}/lists/${listId}/items/${id}?format=json`, fields, { headers: OCS_HEADERS }).then(unwrap),
+	toggle: (listId, id) =>
+		axios.post(`${BASE}/lists/${listId}/items/${id}/toggle?format=json`, {}, { headers: OCS_HEADERS }).then(unwrap),
+	destroy: (listId, id) =>
+		axios.delete(`${BASE}/lists/${listId}/items/${id}?format=json`, { headers: OCS_HEADERS }),
+}
+
 export const listsApi = {
 	getAll: () =>
 		axios.get(`${BASE}/lists?format=json`, { headers: OCS_HEADERS }).then(unwrap),
