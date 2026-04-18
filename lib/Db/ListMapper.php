@@ -58,6 +58,7 @@ class ListMapper extends QBMapper {
 
     /**
      * Returns all lists owned by or shared with the user (directly or via groups).
+     * Uses a LEFT JOIN on lists_shares to avoid subquery cross-table reference issues.
      *
      * @param string[] $groups
      * @return ListEntity[]
@@ -67,42 +68,41 @@ class ListMapper extends QBMapper {
         $l  = $this->getTableName();
         $s  = 'lists_shares';
 
-        // Build the EXISTS subquery for shared access
-        $sub = $this->db->getQueryBuilder();
+        // Build the JOIN condition for matching shares
         if (empty($groups)) {
-            $sharedCondition = $sub->expr()->andX(
-                $sub->expr()->eq('s.share_type', $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT)),
-                $sub->expr()->eq('s.share_with', $qb->createNamedParameter($uid))
+            $joinCondition = $qb->expr()->andX(
+                $qb->expr()->eq('s.list_id', 'l.id'),
+                $qb->expr()->eq('s.share_type', $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT)),
+                $qb->expr()->eq('s.share_with', $qb->createNamedParameter($uid))
             );
         } else {
             $groupParams = array_map(
                 fn($g) => $qb->createNamedParameter($g),
                 $groups
             );
-            $sharedCondition = $sub->expr()->orX(
-                $sub->expr()->andX(
-                    $sub->expr()->eq('s.share_type', $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT)),
-                    $sub->expr()->eq('s.share_with', $qb->createNamedParameter($uid))
-                ),
-                $sub->expr()->andX(
-                    $sub->expr()->eq('s.share_type', $qb->createNamedParameter(1, IQueryBuilder::PARAM_INT)),
-                    $sub->expr()->in('s.share_with', $groupParams)
+            $joinCondition = $qb->expr()->andX(
+                $qb->expr()->eq('s.list_id', 'l.id'),
+                $qb->expr()->orX(
+                    $qb->expr()->andX(
+                        $qb->expr()->eq('s.share_type', $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT)),
+                        $qb->expr()->eq('s.share_with', $qb->createNamedParameter($uid))
+                    ),
+                    $qb->expr()->andX(
+                        $qb->expr()->eq('s.share_type', $qb->createNamedParameter(1, IQueryBuilder::PARAM_INT)),
+                        $qb->expr()->in('s.share_with', $groupParams)
+                    )
                 )
             );
         }
 
-        $sub->select($sub->createFunction('1'))
-            ->from($s, 's')
-            ->where($sub->expr()->eq('s.list_id', $qb->createFunction("`$l`.`id`")))
-            ->andWhere($sharedCondition);
-
-        $qb->select('*')
-            ->from($l)
+        $qb->selectDistinct('l.*')
+            ->from($l, 'l')
+            ->leftJoin('l', $s, 's', $joinCondition)
             ->where($qb->expr()->orX(
-                $qb->expr()->eq('uid', $qb->createNamedParameter($uid)),
-                $qb->createFunction('EXISTS (' . $sub->getSQL() . ')')
+                $qb->expr()->eq('l.uid', $qb->createNamedParameter($uid)),
+                $qb->expr()->isNotNull('s.id')
             ))
-            ->orderBy('name', 'ASC');
+            ->orderBy('l.name', 'ASC');
 
         return $this->findEntities($qb);
     }
