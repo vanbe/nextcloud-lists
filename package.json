@@ -12,6 +12,7 @@
     "@nextcloud/axios": "^2.5.1",
     "@nextcloud/router": "^3.0.1",
     "@nextcloud/vue": "^8.22.0",
+    "@vue/compat": "^3.5.32",
     "babel-loader": "^10.1.1",
     "linkifyjs": "^4.3.2",
     "node-polyfill-webpack-plugin": "^4.0.0",

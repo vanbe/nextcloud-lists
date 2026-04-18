@@ -1,9 +1,9 @@
-// Shim: @nextcloud/vue v8 has residual Vue 2 API calls (Vue.extend, set, del).
-// Re-export Vue 3 + compat stubs so the library doesn't crash.
-export * from 'vue/dist/vue.esm-bundler.js'
-import { defineComponent } from 'vue/dist/vue.esm-bundler.js'
+// Use @vue/compat (Vue 3 + Vue 2 compat layer) so that @nextcloud/vue v8
+// components compiled with Vue 2 render functions work in our webpack bundle.
+export * from '@vue/compat'
+export { default } from '@vue/compat'
 
-// Vue 2 reactive helpers — in Vue 3, plain assignment suffices
+// Vue 2 reactive helpers missing from @vue/compat — plain assignment is enough in Vue 3
 export const set = (target, key, value) => {
 	target[key] = value
 	return value
@@ -11,6 +11,3 @@ export const set = (target, key, value) => {
 export const del = (target, key) => {
 	delete target[key]
 }
-
-// Vue 2 Vue.extend() compat
-export default { extend: defineComponent, set, del }

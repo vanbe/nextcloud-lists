@@ -8,7 +8,8 @@ module.exports = merge(baseConfig, {
 	},
 	resolve: {
 		alias: {
-			// @nextcloud/vue v8 has legacy Vue.extend() calls — shim provides it
+			// Route all 'vue' imports through our shim (@vue/compat)
+			// so @nextcloud/vue v8 Vue-2-compiled components work in webpack
 			vue$: path.join(__dirname, 'src', 'vue-shim.js'),
 		},
 	},
