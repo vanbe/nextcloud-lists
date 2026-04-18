@@ -15,6 +15,9 @@
 				@keydown.arrow-up.prevent="moveFocus(-1)"
 				@blur="onBlur"
 			/>
+			<span v-if="defaultCategoryId && activeCategoryName" class="item-input__cat-hint">
+				{{ activeCategoryName }}
+			</span>
 			<button
 				class="item-input__btn"
 				type="button"
@@ -53,6 +56,8 @@ export default {
 
 	props: {
 		listId: { type: Number, required: true },
+		categories: { type: Array, default: () => [] },
+		defaultCategoryId: { type: Number, default: null },
 	},
 
 	emits: ['add', 'select-suggestion'],
@@ -64,6 +69,14 @@ export default {
 			focusedIdx: -1,
 			debounceTimer: null,
 		}
+	},
+
+	computed: {
+		activeCategoryName() {
+			if (!this.defaultCategoryId) return null
+			const cat = this.categories.find((c) => c.id === this.defaultCategoryId)
+			return cat ? cat.name : null
+		},
 	},
 
 	methods: {
@@ -159,6 +172,15 @@ export default {
 .item-input__btn:disabled {
 	opacity: 0.5;
 	cursor: default;
+}
+.item-input__cat-hint {
+	font-size: 0.8em;
+	color: var(--color-primary);
+	background: var(--color-primary-light, #e8f4ff);
+	padding: 2px 8px;
+	border-radius: 12px;
+	white-space: nowrap;
+	flex-shrink: 0;
 }
 .item-input__suggestions {
 	position: absolute;

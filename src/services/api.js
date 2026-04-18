@@ -30,14 +30,25 @@ export const itemsApi = {
 		axios.get(`${BASE}/lists/${listId}/items/suggest?format=json&q=${encodeURIComponent(q)}`, { headers: OCS_HEADERS }).then(unwrap),
 	getAll: (listId) =>
 		axios.get(`${BASE}/lists/${listId}/items?format=json`, { headers: OCS_HEADERS }).then(unwrap),
-	create: (listId, title) =>
-		axios.post(`${BASE}/lists/${listId}/items?format=json`, { title }, { headers: OCS_HEADERS }).then(unwrap),
+	create: (listId, title, categoryId = null) =>
+		axios.post(`${BASE}/lists/${listId}/items?format=json`, { title, categoryId }, { headers: OCS_HEADERS }).then(unwrap),
 	update: (listId, id, fields) =>
 		axios.put(`${BASE}/lists/${listId}/items/${id}?format=json`, fields, { headers: OCS_HEADERS }).then(unwrap),
 	toggle: (listId, id) =>
 		axios.post(`${BASE}/lists/${listId}/items/${id}/toggle?format=json`, {}, { headers: OCS_HEADERS }).then(unwrap),
 	destroy: (listId, id) =>
 		axios.delete(`${BASE}/lists/${listId}/items/${id}?format=json`, { headers: OCS_HEADERS }),
+}
+
+export const categoriesApi = {
+	getAll: (listId) =>
+		axios.get(`${BASE}/lists/${listId}/categories?format=json`, { headers: OCS_HEADERS }).then(unwrap),
+	create: (listId, name) =>
+		axios.post(`${BASE}/lists/${listId}/categories?format=json`, { name }, { headers: OCS_HEADERS }).then(unwrap),
+	update: (listId, id, name) =>
+		axios.put(`${BASE}/lists/${listId}/categories/${id}?format=json`, { name }, { headers: OCS_HEADERS }).then(unwrap),
+	destroy: (listId, id) =>
+		axios.delete(`${BASE}/lists/${listId}/categories/${id}?format=json`, { headers: OCS_HEADERS }),
 }
 
 export const listsApi = {

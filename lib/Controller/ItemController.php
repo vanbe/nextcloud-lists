@@ -49,7 +49,7 @@ class ItemController extends OCSController {
     }
 
     #[NoAdminRequired]
-    public function create(int $listId, string $title, ?string $description = null): DataResponse {
+    public function create(int $listId, string $title, ?string $description = null, ?int $categoryId = null): DataResponse {
         if (trim($title) === '') {
             return new DataResponse(['message' => 'Title is required'], Http::STATUS_BAD_REQUEST);
         }
@@ -57,7 +57,7 @@ class ItemController extends OCSController {
             return new DataResponse(['message' => 'Title too long (max 255)'], Http::STATUS_BAD_REQUEST);
         }
         try {
-            $entity = $this->service->create($listId, $this->userId, $title, $description);
+            $entity = $this->service->create($listId, $this->userId, $title, $description, $categoryId);
             return new DataResponse($entity->jsonSerialize(), Http::STATUS_CREATED);
         } catch (NotFoundException) {
             return new DataResponse(['message' => 'List not found'], Http::STATUS_NOT_FOUND);
@@ -67,9 +67,14 @@ class ItemController extends OCSController {
     }
 
     #[NoAdminRequired]
-    public function update(int $listId, int $id, ?string $title = null, ?string $description = null): DataResponse {
+    public function update(int $listId, int $id, ?string $title = null, ?string $description = null, mixed $categoryId = false): DataResponse {
+        // categoryId: false = not provided, null = unassign, int = assign
+        $resolvedCategory = false;
+        if ($categoryId !== false) {
+            $resolvedCategory = $categoryId === null ? null : (int) $categoryId;
+        }
         try {
-            $entity = $this->service->update($id, $listId, $this->userId, $title, $description);
+            $entity = $this->service->update($id, $listId, $this->userId, $title, $description, $resolvedCategory);
             return new DataResponse($entity->jsonSerialize());
         } catch (NotFoundException) {
             return new DataResponse(['message' => 'Not found'], Http::STATUS_NOT_FOUND);

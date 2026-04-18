@@ -40,12 +40,22 @@ export const useItemsStore = defineStore('items', {
 			this.error = null
 		},
 
-		async create(listId, title) {
+		async create(listId, title, categoryId = null) {
 			try {
-				const item = await itemsApi.create(listId, title)
+				const item = await itemsApi.create(listId, title, categoryId)
 				this.items.push(item)
 			} catch {
 				showError(t('lists', 'Could not add item'))
+			}
+		},
+
+		async setCategory(listId, id, categoryId) {
+			try {
+				const item = await itemsApi.update(listId, id, { categoryId })
+				const idx = this.items.findIndex((i) => i.id === id)
+				if (idx !== -1) this.items[idx] = item
+			} catch {
+				showError(t('lists', 'Could not update item'))
 			}
 		},
 

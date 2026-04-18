@@ -1,61 +1,134 @@
 <template>
 	<div class="item-list">
-		<ItemInput :list-id="listId" @add="onAdd" @select-suggestion="onSelectSuggestion" />
+		<ItemInput
+			:list-id="listId"
+			:categories="catStore.categories"
+			:default-category-id="addCategoryId"
+			@add="onAdd"
+			@select-suggestion="onSelectSuggestion" />
 
 		<div v-if="store.loading" class="item-list__loading">
 			{{ t('lists', 'Loading…') }}
 		</div>
-		<div v-else-if="store.error" class="item-list__error">
-			{{ store.error }}
-		</div>
-		<ul v-else ref="listEl" class="item-list__items">
-			<li
-				v-for="item in store.unchecked"
-				:key="item.id"
-				:data-item-id="item.id"
-				class="item-list__item">
-				<input
-					type="checkbox"
-					:checked="item.checked"
-					class="item-list__checkbox"
-					@change="store.toggle(listId, item.id)"
-				/>
-				<span class="item-list__title">{{ item.title }}</span>
-				<button
-					class="item-list__delete"
-					:title="t('lists', 'Delete')"
-					@click="store.destroy(listId, item.id)">
-					✕
-				</button>
-			</li>
 
-			<li v-if="store.checked.length" class="item-list__separator">
-				<span>{{ t('lists', 'Checked') }}</span>
-				<button class="item-list__clear-checked" @click="clearChecked">
-					{{ t('lists', 'Clear all') }}
-				</button>
-			</li>
-
-			<li
-				v-for="item in store.checked"
-				:key="item.id"
-				:data-item-id="item.id"
-				class="item-list__item item-list__item--checked">
-				<input
-					type="checkbox"
-					:checked="item.checked"
-					class="item-list__checkbox"
-					@change="store.toggle(listId, item.id)"
-				/>
-				<span class="item-list__title item-list__title--checked">{{ item.title }}</span>
+		<template v-else>
+			<!-- Category management bar -->
+			<div class="cat-bar">
 				<button
-					class="item-list__delete"
-					:title="t('lists', 'Delete')"
-					@click="store.destroy(listId, item.id)">
-					✕
+					v-for="cat in catStore.categories"
+					:key="cat.id"
+					class="cat-bar__chip"
+					:class="{ 'cat-bar__chip--active': addCategoryId === cat.id }"
+					@click="toggleAddCategory(cat.id)">
+					<span
+						v-if="editingCatId !== cat.id"
+						class="cat-bar__chip-name"
+						@dblclick.stop="startRename(cat)">
+						{{ cat.name }}
+					</span>
+					<input
+						v-else
+						:ref="`catInput_${cat.id}`"
+						v-model="editingCatName"
+						class="cat-bar__chip-input"
+						type="text"
+						maxlength="255"
+						@keydown.enter.prevent="confirmRename(cat)"
+						@keydown.esc.prevent="cancelRename"
+						@blur="confirmRename(cat)" />
+					<button
+						class="cat-bar__chip-del"
+						:title="t('lists', 'Delete category')"
+						@click.stop="onDeleteCategory(cat)">
+						✕
+					</button>
 				</button>
-			</li>
-		</ul>
+				<button class="cat-bar__add" @click="onAddCategory">
+					+ {{ t('lists', 'Category') }}
+				</button>
+			</div>
+
+			<!-- Unchecked items grouped by category -->
+			<ul ref="listEl" class="item-list__items">
+				<!-- Categorised groups -->
+				<template v-for="group in groupedUnchecked" :key="group.categoryId ?? 'none'">
+					<li v-if="catStore.categories.length" class="item-list__group-header">
+						<span>{{ group.categoryName }}</span>
+					</li>
+					<li
+						v-for="item in group.items"
+						:key="item.id"
+						:data-item-id="item.id"
+						class="item-list__item">
+						<input
+							type="checkbox"
+							:checked="item.checked"
+							class="item-list__checkbox"
+							@change="store.toggle(listId, item.id)" />
+						<span class="item-list__title">{{ item.title }}</span>
+						<!-- Category badge / picker -->
+						<div v-if="catStore.categories.length" class="item-list__cat-wrap">
+							<button
+								class="item-list__cat-badge"
+								:class="{ 'item-list__cat-badge--set': item.categoryId }"
+								:title="t('lists', 'Change category')"
+								@click.stop="openCatPicker(item)">
+								{{ categoryName(item.categoryId) }}
+							</button>
+							<div v-if="catPickerItemId === item.id" class="item-list__cat-picker">
+								<button
+									class="item-list__cat-option"
+									@click="assignCategory(item, null)">
+									— {{ t('lists', 'None') }}
+								</button>
+								<button
+									v-for="cat in catStore.categories"
+									:key="cat.id"
+									class="item-list__cat-option"
+									:class="{ 'item-list__cat-option--active': item.categoryId === cat.id }"
+									@click="assignCategory(item, cat.id)">
+									{{ cat.name }}
+								</button>
+							</div>
+						</div>
+						<button
+							class="item-list__delete"
+							:title="t('lists', 'Delete')"
+							@click="store.destroy(listId, item.id)">
+							✕
+						</button>
+					</li>
+				</template>
+
+				<!-- Checked section -->
+				<template v-if="store.checked.length">
+					<li class="item-list__separator">
+						<span>{{ t('lists', 'Checked') }}</span>
+						<button class="item-list__clear-checked" @click="clearChecked">
+							{{ t('lists', 'Clear all') }}
+						</button>
+					</li>
+					<li
+						v-for="item in store.checked"
+						:key="item.id"
+						:data-item-id="item.id"
+						class="item-list__item item-list__item--checked">
+						<input
+							type="checkbox"
+							:checked="item.checked"
+							class="item-list__checkbox"
+							@change="store.toggle(listId, item.id)" />
+						<span class="item-list__title item-list__title--checked">{{ item.title }}</span>
+						<button
+							class="item-list__delete"
+							:title="t('lists', 'Delete')"
+							@click="store.destroy(listId, item.id)">
+							✕
+						</button>
+					</li>
+				</template>
+			</ul>
+		</template>
 	</div>
 </template>
 
@@ -63,6 +136,7 @@
 import { nextTick } from 'vue'
 import { translate as t } from '@nextcloud/l10n'
 import { useItemsStore } from '../store/items.js'
+import { useCategoriesStore } from '../store/categories.js'
 import ItemInput from './ItemInput.vue'
 
 export default {
@@ -76,37 +150,148 @@ export default {
 
 	setup(props) {
 		const store = useItemsStore()
+		const catStore = useCategoriesStore()
 		store.fetchAll(props.listId)
-		return { store }
+		catStore.fetchAll(props.listId)
+		return { store, catStore }
+	},
+
+	data() {
+		return {
+			addCategoryId: null,   // category pre-selected for new items
+			editingCatId: null,    // category being renamed
+			editingCatName: '',
+			catPickerItemId: null, // item whose category picker is open
+		}
+	},
+
+	computed: {
+		groupedUnchecked() {
+			const items = this.store.unchecked
+			if (!this.catStore.categories.length) {
+				return [{ categoryId: null, categoryName: '', items }]
+			}
+
+			const groups = []
+			const catMap = new Map(this.catStore.categories.map((c) => [c.id, c]))
+
+			// One group per category, in category order
+			for (const cat of this.catStore.categories) {
+				const catItems = items.filter((i) => i.categoryId === cat.id)
+				if (catItems.length) {
+					groups.push({ categoryId: cat.id, categoryName: cat.name, items: catItems })
+				}
+			}
+
+			// Uncategorised at the end
+			const uncategorised = items.filter((i) => !i.categoryId || !catMap.has(i.categoryId))
+			if (uncategorised.length) {
+				groups.push({ categoryId: null, categoryName: t('lists', 'Other'), items: uncategorised })
+			}
+
+			return groups
+		},
 	},
 
 	watch: {
 		listId(id) {
 			this.store.reset()
+			this.catStore.reset()
 			this.store.fetchAll(id)
+			this.catStore.fetchAll(id)
+			this.addCategoryId = null
+			this.catPickerItemId = null
 		},
+	},
+
+	mounted() {
+		document.addEventListener('click', this.closeCatPicker)
+	},
+
+	beforeUnmount() {
+		document.removeEventListener('click', this.closeCatPicker)
 	},
 
 	methods: {
 		t,
 
+		categoryName(categoryId) {
+			if (!categoryId) return t('lists', 'Category…')
+			const cat = this.catStore.categories.find((c) => c.id === categoryId)
+			return cat ? cat.name : t('lists', 'Category…')
+		},
+
+		toggleAddCategory(catId) {
+			this.addCategoryId = this.addCategoryId === catId ? null : catId
+		},
+
+		async onAddCategory() {
+			const name = window.prompt(t('lists', 'Category name'))
+			if (name?.trim()) {
+				const cat = await this.catStore.create(this.listId, name.trim())
+				if (cat) this.addCategoryId = cat.id
+			}
+		},
+
+		startRename(cat) {
+			this.editingCatId = cat.id
+			this.editingCatName = cat.name
+			nextTick(() => {
+				const ref = this.$refs[`catInput_${cat.id}`]
+				const el = Array.isArray(ref) ? ref[0] : ref
+				el?.focus()
+				el?.select()
+			})
+		},
+
+		async confirmRename(cat) {
+			const name = this.editingCatName.trim()
+			if (name && name !== cat.name) {
+				await this.catStore.rename(this.listId, cat.id, name)
+			}
+			this.cancelRename()
+		},
+
+		cancelRename() {
+			this.editingCatId = null
+			this.editingCatName = ''
+		},
+
+		async onDeleteCategory(cat) {
+			if (!window.confirm(t('lists', 'Delete category "{name}"? Items will be unassigned.', { name: cat.name }))) return
+			if (this.addCategoryId === cat.id) this.addCategoryId = null
+			await this.catStore.destroy(this.listId, cat.id)
+			// Reflect unassignment in local item state without a full refetch
+			this.store.items.forEach((item) => {
+				if (item.categoryId === cat.id) item.categoryId = null
+			})
+		},
+
+		openCatPicker(item) {
+			this.catPickerItemId = this.catPickerItemId === item.id ? null : item.id
+		},
+
+		closeCatPicker(e) {
+			if (!e.target.closest?.('.item-list__cat-wrap')) {
+				this.catPickerItemId = null
+			}
+		},
+
+		async assignCategory(item, categoryId) {
+			this.catPickerItemId = null
+			await this.store.setCategory(this.listId, item.id, categoryId)
+		},
+
 		async onAdd(title) {
-			await this.store.create(this.listId, title)
+			await this.store.create(this.listId, title, this.addCategoryId)
 		},
 
 		async onSelectSuggestion(item) {
-			// If checked → uncheck it first
 			if (item.checked) {
 				await this.store.toggle(this.listId, item.id)
 			}
-			// After DOM update, scroll to the item and give it focus
 			await nextTick()
 			this.scrollToItem(item.id)
-		},
-
-		async clearChecked() {
-			const checked = [...this.store.checked]
-			await Promise.all(checked.map((item) => this.store.destroy(this.listId, item.id)))
 		},
 
 		scrollToItem(id) {
@@ -117,6 +302,11 @@ export default {
 				setTimeout(() => el.classList.remove('item-list__item--highlight'), 1200)
 			}
 		},
+
+		async clearChecked() {
+			const checked = [...this.store.checked]
+			await Promise.all(checked.map((item) => this.store.destroy(this.listId, item.id)))
+		},
 	},
 }
 </script>
@@ -125,10 +315,85 @@ export default {
 .item-list {
 	padding: 24px;
 }
+
+/* ── Category bar ── */
+.cat-bar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: 12px 0;
+	align-items: center;
+}
+.cat-bar__chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 4px 10px 4px 12px;
+	border: 1px solid var(--color-border);
+	border-radius: 20px;
+	background: var(--color-background-dark);
+	color: var(--color-main-text);
+	font-size: 0.85em;
+	cursor: pointer;
+	transition: background 0.15s;
+}
+.cat-bar__chip--active {
+	background: var(--color-primary);
+	color: var(--color-primary-text);
+	border-color: var(--color-primary);
+}
+.cat-bar__chip-name {
+	cursor: text;
+}
+.cat-bar__chip-input {
+	width: 90px;
+	border: none;
+	background: transparent;
+	color: inherit;
+	font-size: 1em;
+	outline: none;
+	padding: 0;
+}
+.cat-bar__chip-del {
+	background: none;
+	border: none;
+	cursor: pointer;
+	color: inherit;
+	opacity: 0.6;
+	font-size: 0.8em;
+	padding: 0 2px;
+	line-height: 1;
+}
+.cat-bar__chip-del:hover {
+	opacity: 1;
+}
+.cat-bar__add {
+	padding: 4px 12px;
+	border: 1px dashed var(--color-border);
+	border-radius: 20px;
+	background: none;
+	color: var(--color-text-lighter);
+	font-size: 0.85em;
+	cursor: pointer;
+}
+.cat-bar__add:hover {
+	background: var(--color-background-hover);
+}
+
+/* ── Item list ── */
 .item-list__items {
 	list-style: none;
 	margin: 8px 0 0;
 	padding: 0;
+}
+.item-list__group-header {
+	list-style: none;
+	padding: 14px 4px 4px;
+	font-size: 0.8em;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--color-text-lighter);
 }
 .item-list__item {
 	display: flex;
@@ -157,6 +422,56 @@ export default {
 	text-decoration: line-through;
 	color: var(--color-text-lighter);
 }
+
+/* ── Category badge / picker on item ── */
+.item-list__cat-wrap {
+	position: relative;
+}
+.item-list__cat-badge {
+	background: none;
+	border: 1px solid var(--color-border);
+	border-radius: 12px;
+	padding: 2px 8px;
+	font-size: 0.75em;
+	color: var(--color-text-lighter);
+	cursor: pointer;
+	white-space: nowrap;
+	max-width: 100px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.item-list__cat-badge--set {
+	background: var(--color-background-dark);
+	color: var(--color-main-text);
+}
+.item-list__cat-picker {
+	position: absolute;
+	right: 0;
+	top: calc(100% + 4px);
+	background: var(--color-main-background);
+	border: 1px solid var(--color-border);
+	border-radius: var(--border-radius);
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+	z-index: 600;
+	min-width: 140px;
+	padding: 4px 0;
+}
+.item-list__cat-option {
+	display: block;
+	width: 100%;
+	text-align: left;
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 7px 14px;
+	font-size: 0.9em;
+	color: var(--color-main-text);
+}
+.item-list__cat-option:hover,
+.item-list__cat-option--active {
+	background: var(--color-background-hover);
+}
+
 .item-list__delete {
 	background: none;
 	border: none;
@@ -192,12 +507,8 @@ export default {
 .item-list__clear-checked:hover {
 	background: var(--color-background-hover);
 }
-.item-list__loading,
-.item-list__error {
+.item-list__loading {
 	padding: 16px 0;
 	color: var(--color-text-lighter);
-}
-.item-list__error {
-	color: var(--color-error);
 }
 </style>

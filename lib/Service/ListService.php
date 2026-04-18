@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Lists\Service;
 
+use OCA\Lists\Db\CategoryMapper;
 use OCA\Lists\Db\ItemMapper;
 use OCA\Lists\Db\ListEntity;
 use OCA\Lists\Db\ListMapper;
@@ -18,6 +19,7 @@ class ListService {
         private readonly ListMapper    $mapper,
         private readonly ItemMapper    $itemMapper,
         private readonly ShareMapper   $shareMapper,
+        private readonly CategoryMapper $categoryMapper,
         private readonly IGroupManager $groupManager,
         private readonly IUserManager  $userManager,
     ) {}
@@ -81,6 +83,7 @@ class ListService {
         }
 
         $this->itemMapper->deleteAllForList($id);
+        $this->categoryMapper->deleteAllForList($id);
         $this->shareMapper->deleteAllForList($id);
         $this->mapper->delete($entity);
     }

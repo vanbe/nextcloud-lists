@@ -66,6 +66,14 @@ class ItemMapper extends QBMapper {
         return $this->findEntities($qb);
     }
 
+    public function nullifyCategory(int $categoryId): void {
+        $qb = $this->db->getQueryBuilder();
+        $qb->update($this->getTableName())
+            ->set('category_id', $qb->createNamedParameter(null, IQueryBuilder::PARAM_NULL))
+            ->where($qb->expr()->eq('category_id', $qb->createNamedParameter($categoryId, IQueryBuilder::PARAM_INT)));
+        $qb->executeStatement();
+    }
+
     public function deleteAllForList(int $listId): void {
         $qb = $this->db->getQueryBuilder();
         $qb->delete($this->getTableName())

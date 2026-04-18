@@ -19,6 +19,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setCheckedAt(?int $checkedAt)
  * @method int getPosition()
  * @method void setPosition(int $position)
+ * @method int|null getCategoryId()
+ * @method void setCategoryId(?int $categoryId)
  * @method int getCreatedAt()
  * @method void setCreatedAt(int $createdAt)
  * @method int getUpdatedAt()
@@ -31,6 +33,7 @@ class ItemEntity extends Entity {
     protected int $checked = 0;
     protected ?int $checkedAt = null;
     protected int $position = 0;
+    protected ?int $categoryId = null;
     protected int $createdAt = 0;
     protected int $updatedAt = 0;
 
@@ -40,6 +43,7 @@ class ItemEntity extends Entity {
         $this->addType('checked', 'integer');
         $this->addType('checkedAt', 'integer');
         $this->addType('position', 'integer');
+        $this->addType('categoryId', 'integer');
         $this->addType('createdAt', 'integer');
         $this->addType('updatedAt', 'integer');
     }
@@ -57,6 +61,7 @@ class ItemEntity extends Entity {
             'checked'     => $this->isChecked(),
             'checkedAt'   => $this->getCheckedAt(),
             'position'    => $this->getPosition(),
+            'categoryId'  => $this->getCategoryId(),
             'createdAt'   => $this->getCreatedAt(),
             'updatedAt'   => $this->getUpdatedAt(),
         ];
