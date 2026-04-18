@@ -1,42 +1,37 @@
 <template>
 	<NcAppNavigation>
 		<template #list>
-			<NcAppNavigationNewItem
-				:name="t('lists', 'New list')"
-				@new-item="onCreate" />
-			<NcAppNavigationItem
+			<li class="lists-nav__new">
+				<button class="lists-nav__new-btn" @click="onNewList">
+					+ {{ t('lists', 'New list') }}
+				</button>
+			</li>
+			<li
 				v-for="list in store.lists"
 				:key="list.id"
-				:name="list.name"
-				:active="list.id === store.selectedId"
+				class="lists-nav__item"
+				:class="{ 'lists-nav__item--active': list.id === store.selectedId }"
 				@click="store.select(list.id)">
-				<template #actions>
-					<NcActionButton @click="store.destroy(list.id)">
-						<template #icon>
-							<Delete :size="20" />
-						</template>
-						{{ t('lists', 'Delete') }}
-					</NcActionButton>
-				</template>
-			</NcAppNavigationItem>
+				<span class="lists-nav__name">{{ list.name }}</span>
+				<button
+					class="lists-nav__delete"
+					:title="t('lists', 'Delete')"
+					@click.stop="store.destroy(list.id)">
+					✕
+				</button>
+			</li>
 		</template>
 	</NcAppNavigation>
 
 	<NcAppContent>
 		<div v-if="store.loading" class="lists-loading">
-			<NcLoadingIcon :size="48" />
+			Loading…
 		</div>
 		<div v-else-if="store.error" class="lists-error">
 			{{ store.error }}
 		</div>
 		<div v-else-if="!store.selected" class="lists-empty">
-			<NcEmptyContent
-				:name="t('lists', 'No list selected')"
-				:description="t('lists', 'Create a list or select one in the sidebar.')">
-				<template #icon>
-					<FormatListChecks :size="64" />
-				</template>
-			</NcEmptyContent>
+			<p>{{ t('lists', 'Create a list or select one in the sidebar.') }}</p>
 		</div>
 		<div v-else class="lists-view">
 			<h2>{{ store.selected.name }}</h2>
@@ -49,34 +44,14 @@
 </template>
 
 <script>
-import {
-	NcAppContent,
-	NcAppNavigation,
-	NcAppNavigationItem,
-	NcAppNavigationNewItem,
-	NcActionButton,
-	NcEmptyContent,
-	NcLoadingIcon,
-} from '@nextcloud/vue'
+import { NcAppContent, NcAppNavigation } from '@nextcloud/vue'
 import { translate as t } from '@nextcloud/l10n'
-import Delete from 'vue-material-design-icons/Delete.vue'
-import FormatListChecks from 'vue-material-design-icons/FormatListChecks.vue'
 import { useListsStore } from './store/lists.js'
 
 export default {
 	name: 'App',
 
-	components: {
-		NcAppContent,
-		NcAppNavigation,
-		NcAppNavigationItem,
-		NcAppNavigationNewItem,
-		NcActionButton,
-		NcEmptyContent,
-		NcLoadingIcon,
-		Delete,
-		FormatListChecks,
-	},
+	components: { NcAppContent, NcAppNavigation },
 
 	setup() {
 		const store = useListsStore()
@@ -87,10 +62,64 @@ export default {
 	methods: {
 		t,
 
-		async onCreate(name) {
-			if (!name.trim()) return
-			await this.store.create(name)
+		async onNewList() {
+			const name = window.prompt(t('lists', 'List name'))
+			if (name?.trim()) {
+				await this.store.create(name.trim())
+			}
 		},
 	},
 }
 </script>
+
+<style scoped>
+.lists-nav__new {
+	list-style: none;
+	padding: 4px 12px;
+}
+.lists-nav__new-btn {
+	width: 100%;
+	text-align: left;
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 8px;
+	color: var(--color-primary);
+	font-weight: bold;
+}
+.lists-nav__item {
+	list-style: none;
+	display: flex;
+	align-items: center;
+	padding: 4px 12px;
+	cursor: pointer;
+}
+.lists-nav__item:hover,
+.lists-nav__item--active {
+	background: var(--color-background-hover);
+}
+.lists-nav__name {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.lists-nav__delete {
+	background: none;
+	border: none;
+	cursor: pointer;
+	opacity: 0;
+	color: var(--color-text-lighter);
+}
+.lists-nav__item:hover .lists-nav__delete {
+	opacity: 1;
+}
+.lists-view {
+	padding: 24px;
+}
+.lists-empty {
+	padding: 48px;
+	text-align: center;
+	color: var(--color-text-lighter);
+}
+</style>
