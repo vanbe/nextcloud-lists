@@ -1,20 +1,19 @@
 import axios from '@nextcloud/axios'
 
 const BASE = '/ocs/v2.php/apps/lists/api/v1'
-
-const ocsClient = axios.create({
-	headers: { 'OCS-APIRequest': 'true' },
-})
+const OCS_HEADERS = { 'OCS-APIRequest': 'true' }
 
 function unwrap(response) {
 	return response.data.ocs.data
 }
 
 export const listsApi = {
-	getAll: () => ocsClient.get(`${BASE}/lists?format=json`).then(unwrap),
+	getAll: () =>
+		axios.get(`${BASE}/lists?format=json`, { headers: OCS_HEADERS }).then(unwrap),
 	create: (name, description = null, icon = null) =>
-		ocsClient.post(`${BASE}/lists?format=json`, { name, description, icon }).then(unwrap),
+		axios.post(`${BASE}/lists?format=json`, { name, description, icon }, { headers: OCS_HEADERS }).then(unwrap),
 	update: (id, fields) =>
-		ocsClient.put(`${BASE}/lists/${id}?format=json`, fields).then(unwrap),
-	destroy: (id) => ocsClient.delete(`${BASE}/lists/${id}?format=json`),
+		axios.put(`${BASE}/lists/${id}?format=json`, fields, { headers: OCS_HEADERS }).then(unwrap),
+	destroy: (id) =>
+		axios.delete(`${BASE}/lists/${id}?format=json`, { headers: OCS_HEADERS }),
 }
