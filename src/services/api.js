@@ -7,6 +7,17 @@ function unwrap(response) {
 	return response.data.ocs.data
 }
 
+export const sharesApi = {
+	getAll: (listId) =>
+		axios.get(`${BASE}/lists/${listId}/shares?format=json`, { headers: OCS_HEADERS }).then(unwrap),
+	create: (listId, shareType, shareWith, permissions = 1) =>
+		axios.post(`${BASE}/lists/${listId}/shares?format=json`, { shareType, shareWith, permissions }, { headers: OCS_HEADERS }).then(unwrap),
+	update: (listId, id, permissions) =>
+		axios.put(`${BASE}/lists/${listId}/shares/${id}?format=json`, { permissions }, { headers: OCS_HEADERS }).then(unwrap),
+	destroy: (listId, id) =>
+		axios.delete(`${BASE}/lists/${listId}/shares/${id}?format=json`, { headers: OCS_HEADERS }),
+}
+
 export const itemsApi = {
 	getAll: (listId) =>
 		axios.get(`${BASE}/lists/${listId}/items?format=json`, { headers: OCS_HEADERS }).then(unwrap),

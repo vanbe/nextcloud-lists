@@ -11,20 +11,21 @@ use OCA\Lists\Exception\NotFoundException;
 
 class ItemService {
     public function __construct(
-        private readonly ItemMapper $itemMapper,
-        private readonly ListService $listService,
+        private readonly ItemMapper        $itemMapper,
+        private readonly PermissionService $permissionService,
     ) {}
 
     /** @return ItemEntity[] */
     public function findAll(int $listId, string $uid): array {
-        // Verify the list belongs to this user (throws NotFoundException/ForbiddenException)
-        $this->listService->find($listId, $uid);
+        $this->permissionService->getAccessibleList($listId, $uid);
         return $this->itemMapper->findAll($listId);
     }
 
     /** @throws NotFoundException|ForbiddenException */
     public function create(int $listId, string $uid, string $title, ?string $description = null): ItemEntity {
-        $this->listService->find($listId, $uid);
+        if (!$this->permissionService->canWrite($listId, $uid)) {
+            throw new ForbiddenException();
+        }
 
         $entity = new ItemEntity();
         $entity->setListId($listId);
@@ -38,7 +39,9 @@ class ItemService {
 
     /** @throws NotFoundException|ForbiddenException */
     public function update(int $id, int $listId, string $uid, ?string $title = null, ?string $description = null): ItemEntity {
-        $this->listService->find($listId, $uid);
+        if (!$this->permissionService->canWrite($listId, $uid)) {
+            throw new ForbiddenException();
+        }
         $entity = $this->itemMapper->find($id, $listId);
 
         if ($title !== null) {
@@ -53,7 +56,9 @@ class ItemService {
 
     /** @throws NotFoundException|ForbiddenException */
     public function toggle(int $id, int $listId, string $uid): ItemEntity {
-        $this->listService->find($listId, $uid);
+        if (!$this->permissionService->canWrite($listId, $uid)) {
+            throw new ForbiddenException();
+        }
         $entity = $this->itemMapper->find($id, $listId);
 
         $nowChecked = $entity->isChecked() ? 0 : 1;
@@ -65,7 +70,9 @@ class ItemService {
 
     /** @throws NotFoundException|ForbiddenException */
     public function delete(int $id, int $listId, string $uid): void {
-        $this->listService->find($listId, $uid);
+        if (!$this->permissionService->canWrite($listId, $uid)) {
+            throw new ForbiddenException();
+        }
         $entity = $this->itemMapper->find($id, $listId);
         $this->itemMapper->delete($entity);
     }

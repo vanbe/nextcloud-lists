@@ -8,17 +8,26 @@ use OCA\Lists\Db\ListEntity;
 use OCA\Lists\Db\ListMapper;
 use OCA\Lists\Exception\ForbiddenException;
 use OCA\Lists\Exception\NotFoundException;
+use OCP\IGroupManager;
+use OCP\IUserManager;
 
 class ListService {
-    public function __construct(private readonly ListMapper $mapper) {}
+    public function __construct(
+        private readonly ListMapper    $mapper,
+        private readonly IGroupManager $groupManager,
+        private readonly IUserManager  $userManager,
+    ) {}
 
-    /** @return ListEntity[] */
+    /** @return ListEntity[] owned + shared */
     public function findAll(string $uid): array {
-        return $this->mapper->findAll($uid);
+        $groups = $this->getUserGroups($uid);
+        return $this->mapper->findAllForUser($uid, $groups);
     }
 
-    /** @throws NotFoundException */
+    /** @throws NotFoundException|ForbiddenException */
     public function find(int $id, string $uid): ListEntity {
+        // Used by ItemService only — delegated to PermissionService there.
+        // Keep for direct owner checks in update/delete.
         return $this->mapper->find($id, $uid);
     }
 
@@ -68,5 +77,14 @@ class ListService {
         }
 
         $this->mapper->delete($entity);
+    }
+
+    /** @return string[] */
+    private function getUserGroups(string $uid): array {
+        $user = $this->userManager->get($uid);
+        if ($user === null) {
+            return [];
+        }
+        return $this->groupManager->getUserGroupIds($user);
     }
 }

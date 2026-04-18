@@ -27,11 +27,17 @@ AVANT de coder une nouvelle partie, lis le doc correspondant :
 6. Si tu bloques : lis les logs du container avant de tenter un workaround.
 
 ## État actuel
-Jalon en cours : **5 — Items (CRUD + toggle)**
-Dernier commit : `feat(jalon-4): SPA frontend minimale — Vue 3 + Pinia + NcApp`
+Jalon en cours : **6 — Partage**
+Dernier commit : `feat(jalon-5): Items CRUD + toggle — backend OCS + frontend Vue`
+
+### Pièges découverts (à ne pas réintroduire)
+- `NcAppContent` ne rend pas son slot par défaut dans @vue/compat MODE:2 → remplacé par `<main id="app-content">` natif.
+- `#lists-root` est dans `#content` (flex container NC) mais pas enfant direct → `display: contents` dans main.js après montage pour que `#app-navigation` et `#app-content` deviennent des flex items directs de NC.
+- Le bouton toggle NcAppNavigation chevauche le titre → `padding-top: 44px` sur le h2.
 
 ### Jalons terminés
 - ✅ **1 — Squelette + enable** : `info.xml`, `Application.php`, `PageController`, template `index.php`, icône, Docker, Makefile.
 - ✅ **2 — DB + entités + mappers** : migration 3 tables (`lists`, `lists_items`, `lists_shares`), `ListEntity`/`ListMapper`, exceptions, `occ lists:debug:seed`, tests PHPUnit.
 - ✅ **3 — API Lists CRUD** : `ListService`, `ListController` (OCSController), routes OCS, validé par cURL (GET/POST/PUT/DELETE + 404/403).
-- ✅ **4 — SPA frontend minimale** : `package.json`, `webpack.config.js`, `src/main.js`, `App.vue` (NcApp + NcAppNavigation + NcAppContent), store Pinia (`lists.js`), service API (`api.js`). Build webpack OK, app Vue montée dans NC.
+- ✅ **4 — SPA frontend minimale** : `package.json`, `webpack.config.js`, `src/main.js`, `App.vue` (NcAppNavigation + main#app-content), store Pinia (`lists.js`), service API (`api.js`). Build webpack OK, app Vue montée dans NC.
+- ✅ **5 — Items CRUD + toggle** : `ItemEntity`, `ItemMapper`, `ItemService`, `ItemController`, routes OCS imbriquées, `itemsApi`, store `items.js`, `ItemList.vue` (ajout/toggle/suppression, tri cochés/non-cochés). Piège layout NC résolu.

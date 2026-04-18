@@ -23,7 +23,7 @@
 		</template>
 	</NcAppNavigation>
 
-	<NcAppContent>
+	<main id="app-content" class="app-content no-snapper">
 		<div v-if="store.loading" class="lists-loading">
 			Loading…
 		</div>
@@ -37,20 +37,22 @@
 			<h2>{{ store.selected.name }}</h2>
 			<p v-if="store.selected.description" class="lists-view__description">{{ store.selected.description }}</p>
 			<ItemList :list-id="store.selected.id" />
+			<ShareSection :list-id="store.selected.id" />
 		</div>
-	</NcAppContent>
+	</main>
 </template>
 
 <script>
-import { NcAppContent, NcAppNavigation } from '@nextcloud/vue'
+import { NcAppNavigation } from '@nextcloud/vue'
 import { translate as t } from '@nextcloud/l10n'
 import { useListsStore } from './store/lists.js'
 import ItemList from './components/ItemList.vue'
+import ShareSection from './components/ShareSection.vue'
 
 export default {
 	name: 'App',
 
-	components: { NcAppContent, NcAppNavigation, ItemList },
+	components: { NcAppNavigation, ItemList, ShareSection },
 
 	setup() {
 		const store = useListsStore()
@@ -114,11 +116,11 @@ export default {
 	opacity: 1;
 }
 .lists-view {
-	padding: 24px 0 24px 24px;
+	padding: 12px 0 24px 24px;
 }
 .lists-view h2 {
 	margin: 0 0 4px;
-	padding: 0 24px 0 0;
+	padding: 44px 24px 0 0;
 }
 .lists-view__description {
 	color: var(--color-text-lighter);
@@ -126,7 +128,7 @@ export default {
 	padding: 0 24px 0 0;
 }
 .lists-empty {
-	padding: 48px;
+	padding: 92px 48px 48px;
 	text-align: center;
 	color: var(--color-text-lighter);
 }
