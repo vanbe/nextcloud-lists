@@ -1,8 +1,5 @@
 <?php
 /** @var \OCP\IL10N $l */
-/** @var array $_ */
-\OCP\Util::addStyle('lists', 'app');
+\OCP\Util::addScript('lists', 'lists-main');
 ?>
-<div id="lists-root">
-    <h2>Hello from Lists!</h2>
-</div>
+<div id="lists-root"></div>
