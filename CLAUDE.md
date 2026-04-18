@@ -27,10 +27,11 @@ AVANT de coder une nouvelle partie, lis le doc correspondant :
 6. Si tu bloques : lis les logs du container avant de tenter un workaround.
 
 ## État actuel
-Jalon en cours : **4 — SPA frontend minimale**
-Dernier commit : `feat(jalon-3): API Lists CRUD (ListController + ListService)`
+Jalon en cours : **5 — Items (CRUD + toggle)**
+Dernier commit : `feat(jalon-4): SPA frontend minimale — Vue 3 + Pinia + NcApp`
 
 ### Jalons terminés
 - ✅ **1 — Squelette + enable** : `info.xml`, `Application.php`, `PageController`, template `index.php`, icône, Docker, Makefile.
 - ✅ **2 — DB + entités + mappers** : migration 3 tables (`lists`, `lists_items`, `lists_shares`), `ListEntity`/`ListMapper`, exceptions, `occ lists:debug:seed`, tests PHPUnit.
 - ✅ **3 — API Lists CRUD** : `ListService`, `ListController` (OCSController), routes OCS, validé par cURL (GET/POST/PUT/DELETE + 404/403).
+- ✅ **4 — SPA frontend minimale** : `package.json`, `webpack.config.js`, `src/main.js`, `App.vue` (NcApp + NcAppNavigation + NcAppContent), store Pinia (`lists.js`), service API (`api.js`). Build webpack OK, app Vue montée dans NC.
