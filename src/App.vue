@@ -76,6 +76,7 @@
 <script>
 import { NcAppNavigation } from '@nextcloud/vue'
 import { translate as t } from '@nextcloud/l10n'
+import { getCurrentUser } from '@nextcloud/auth'
 import { useListsStore } from './store/lists.js'
 import ItemList from './components/ItemList.vue'
 import ShareModal from './components/ShareModal.vue'
@@ -99,7 +100,7 @@ export default {
 			shareTarget: null,
 			formTarget: undefined, // undefined = hidden, null = create mode, object = edit mode
 			reorderOpen: false,
-			currentUser: window.OC?.currentUser ?? '',
+			currentUser: getCurrentUser()?.uid ?? '',
 		}
 	},
 
