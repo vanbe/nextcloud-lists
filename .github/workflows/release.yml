@@ -1,0 +1,79 @@
+name: Build and publish release
+
+on:
+  release:
+    types: [published]
+
+env:
+  APP_NAME: lists
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.APP_NAME }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build JS assets
+        working-directory: ${{ env.APP_NAME }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: Package app tarball
+        working-directory: ${{ env.APP_NAME }}
+        run: |
+          mkdir -p build/artifacts
+          TMPDIR=$(mktemp -d)
+          rsync -a \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='node_modules' \
+            --exclude='src' \
+            --exclude='tests' \
+            --exclude='build' \
+            --exclude='docs' \
+            --exclude='vendor' \
+            --exclude='webpack.config.js' \
+            --exclude='package.json' \
+            --exclude='package-lock.json' \
+            --exclude='composer.json' \
+            --exclude='composer.lock' \
+            --exclude='phpunit.xml' \
+            --exclude='vitest.config.js' \
+            --exclude='docker-compose.dev.yml' \
+            --exclude='Makefile' \
+            --exclude='CLAUDE.md' \
+            --exclude='krankerl.toml' \
+            --exclude='.nextcloudignore' \
+            --exclude='.claude' \
+            --exclude='js/*.map' \
+            ./ $TMPDIR/lists/
+          tar -czf build/artifacts/${{ env.APP_NAME }}.tar.gz -C $TMPDIR lists
+
+      - name: Upload tarball to GitHub release
+        uses: svenstaro/upload-release-action@v2
+        id: upload
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ${{ env.APP_NAME }}/build/artifacts/${{ env.APP_NAME }}.tar.gz
+          asset_name: ${{ env.APP_NAME }}.tar.gz
+          tag: ${{ github.ref }}
+
+      - name: Sign and push to Nextcloud App Store
+        uses: R0Wi/nextcloud-appstore-push-action@v1
+        with:
+          app_name: ${{ env.APP_NAME }}
+          appstore_token: ${{ secrets.APPSTORE_TOKEN }}
+          app_private_key: ${{ secrets.APP_PRIVATE_KEY }}
+          last_release_tar_ball_url: ${{ steps.upload.outputs.browser_download_url }}
+          release_tar_ball_url: ${{ steps.upload.outputs.browser_download_url }}
+          nightly: ${{ github.event.release.prerelease }}
