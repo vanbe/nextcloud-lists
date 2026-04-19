@@ -10,6 +10,8 @@
     <author mail="charlesv@vanbe.be">Charles Vanbeneden</author>
     <namespace>Lists</namespace>
     <category>organization</category>
+    <website>https://github.com/charlesvanbeneden/nextcloud-lists</website>
+    <repository>https://github.com/charlesvanbeneden/nextcloud-lists</repository>
     <bugs>https://github.com/charlesvanbeneden/nextcloud-lists/issues</bugs>
     <dependencies>
         <nextcloud min-version="30" max-version="34"/>
