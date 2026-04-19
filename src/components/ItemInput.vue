@@ -1,6 +1,13 @@
 <template>
 	<div class="item-input" @keydown.esc="closeSuggestions">
 		<div class="item-input__row">
+			<!-- Quantity stepper (left of title, only when list has quantities) -->
+			<div v-if="hasQuantities" class="item-input__stepper">
+				<button class="item-input__step-btn" type="button" :disabled="quantity <= 1" @click="quantity = Math.max(1, quantity - 1)">−</button>
+				<span class="item-input__step-val">{{ quantity }}</span>
+				<button class="item-input__step-btn" type="button" @click="quantity++">+</button>
+			</div>
+
 			<input
 				ref="inputEl"
 				v-model="title"
@@ -13,11 +20,12 @@
 				@keydown.enter.prevent="onEnter"
 				@keydown.arrow-down.prevent="moveFocus(1)"
 				@keydown.arrow-up.prevent="moveFocus(-1)"
-				@blur="onBlur"
-			/>
+				@blur="onBlur" />
+
 			<span v-if="defaultCategoryId && activeCategoryName" class="item-input__cat-hint">
 				{{ activeCategoryName }}
 			</span>
+
 			<button
 				class="item-input__btn"
 				type="button"
@@ -56,6 +64,7 @@ export default {
 
 	props: {
 		listId: { type: Number, required: true },
+		hasQuantities: { type: Boolean, default: false },
 		categories: { type: Array, default: () => [] },
 		defaultCategoryId: { type: Number, default: null },
 	},
@@ -65,6 +74,7 @@ export default {
 	data() {
 		return {
 			title: '',
+			quantity: 1,
 			suggestions: [],
 			focusedIdx: -1,
 			debounceTimer: null,
@@ -85,12 +95,10 @@ export default {
 		onInput() {
 			clearTimeout(this.debounceTimer)
 			this.focusedIdx = -1
-
 			if (this.title.trim().length < 2) {
 				this.suggestions = []
 				return
 			}
-
 			this.debounceTimer = setTimeout(() => this.fetchSuggestions(), 150)
 		},
 
@@ -117,7 +125,6 @@ export default {
 		},
 
 		onBlur() {
-			// Delay so mousedown on a suggestion fires first
 			setTimeout(() => { this.closeSuggestions() }, 150)
 		},
 
@@ -128,6 +135,7 @@ export default {
 
 		async selectSuggestion(item) {
 			this.title = ''
+			this.quantity = 1
 			this.closeSuggestions()
 			this.$emit('select-suggestion', item)
 			this.$refs.inputEl?.focus()
@@ -136,9 +144,10 @@ export default {
 		submit() {
 			const trimmed = this.title.trim()
 			if (!trimmed) return
+			this.$emit('add', { title: trimmed, quantity: this.hasQuantities ? this.quantity : null })
 			this.title = ''
+			this.quantity = 1
 			this.closeSuggestions()
-			this.$emit('add', trimmed)
 		},
 	},
 }
@@ -152,7 +161,51 @@ export default {
 .item-input__row {
 	display: flex;
 	gap: 8px;
+	align-items: stretch;
 }
+
+/* ── Quantity stepper in the add row ── */
+.item-input__stepper {
+	display: flex;
+	align-items: stretch;
+	border: 1px solid var(--color-border);
+	border-radius: var(--border-radius);
+	overflow: hidden;
+	flex-shrink: 0;
+}
+.item-input__step-btn {
+	background: var(--color-background-dark);
+	border: none;
+	cursor: pointer;
+	font-size: 1.2em;
+	line-height: 1;
+	width: 36px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--color-main-text);
+	transition: background 0.15s;
+}
+.item-input__step-btn:hover:not(:disabled) {
+	background: var(--color-background-hover);
+}
+.item-input__step-btn:disabled {
+	opacity: 0.4;
+	cursor: default;
+}
+.item-input__step-val {
+	min-width: 36px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 0.95em;
+	font-weight: 600;
+	background: var(--color-main-background);
+	border-left: 1px solid var(--color-border);
+	border-right: 1px solid var(--color-border);
+	padding: 0 4px;
+}
+
 .item-input__field {
 	flex: 1;
 	padding: 8px 12px;
@@ -168,12 +221,15 @@ export default {
 	border: none;
 	border-radius: var(--border-radius);
 	cursor: pointer;
+	white-space: nowrap;
 }
 .item-input__btn:disabled {
 	opacity: 0.5;
 	cursor: default;
 }
 .item-input__cat-hint {
+	display: flex;
+	align-items: center;
 	font-size: 0.8em;
 	color: var(--color-primary);
 	background: var(--color-primary-light, #e8f4ff);

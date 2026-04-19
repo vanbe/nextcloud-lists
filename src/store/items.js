@@ -41,9 +41,9 @@ export const useItemsStore = defineStore('items', {
 			this.error = null
 		},
 
-		async create(listId, title, categoryId = null) {
+		async create(listId, title, categoryId = null, quantity = null) {
 			try {
-				const item = await itemsApi.create(listId, title, categoryId)
+				const item = await itemsApi.create(listId, title, categoryId, quantity)
 				this.items.push(item)
 				useListsStore().refreshCounts()
 			} catch {

@@ -2,6 +2,7 @@
 	<div class="item-list">
 		<ItemInput
 			:list-id="list.id"
+			:has-quantities="list.hasQuantities"
 			:categories="catStore.categories"
 			:default-category-id="addCategoryId"
 			@add="onAdd"
@@ -66,16 +67,15 @@
 							class="item-list__checkbox"
 							@change="store.toggle(list.id, item.id)" />
 						<span class="item-list__title">{{ item.title }}</span>
-						<!-- Quantity -->
-						<input
-							v-if="list.hasQuantities"
-							:value="item.quantity ?? 1"
-							class="item-list__qty"
-							type="number"
-							min="1"
-							step="1"
-							@change.stop="onQuantityChange(item, +$event.target.value)"
-							@click.stop />
+						<!-- Quantity stepper -->
+						<div v-if="list.hasQuantities" class="item-list__stepper" @click.stop>
+							<button
+								class="item-list__step-btn"
+								:disabled="(item.quantity ?? 1) <= 1"
+								@click="changeQty(item, -1)">−</button>
+							<span class="item-list__step-val">{{ item.quantity ?? 1 }}</span>
+							<button class="item-list__step-btn" @click="changeQty(item, +1)">+</button>
+						</div>
 						<!-- Category badge / picker -->
 						<div v-if="catStore.categories.length" class="item-list__cat-wrap">
 							<button
@@ -292,8 +292,8 @@ export default {
 			await this.store.setCategory(this.list.id, item.id, categoryId)
 		},
 
-		async onAdd(title) {
-			await this.store.create(this.list.id, title, this.addCategoryId)
+		async onAdd({ title, quantity }) {
+			await this.store.create(this.list.id, title, this.addCategoryId, quantity)
 		},
 
 		async onSelectSuggestion(item) {
@@ -313,8 +313,9 @@ export default {
 			}
 		},
 
-		async onQuantityChange(item, value) {
-			const qty = Math.max(1, Math.round(value) || 1)
+		async changeQty(item, delta) {
+			const current = item.quantity ?? 1
+			const qty = Math.max(1, current + delta)
 			await this.store.updateQuantity(this.list.id, item.id, qty)
 		},
 
@@ -487,16 +488,52 @@ export default {
 	background: var(--color-background-hover);
 }
 
-.item-list__qty {
-	width: 60px;
-	padding: 3px 6px;
+/* ── Quantity stepper on item rows ── */
+.item-list__stepper {
+	display: flex;
+	align-items: stretch;
+	flex-shrink: 0;
 	border: 1px solid var(--color-border);
 	border-radius: var(--border-radius);
-	background: var(--color-main-background);
+	overflow: hidden;
+}
+.item-list__step-btn {
+	background: var(--color-background-dark);
+	border: none;
+	cursor: pointer;
+	font-size: 1.15em;
+	line-height: 1;
+	/* Large touch target for mobile */
+	min-width: 44px;
+	min-height: 44px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 	color: var(--color-main-text);
-	font-size: 0.9em;
-	text-align: center;
-	flex-shrink: 0;
+	transition: background 0.12s;
+	-webkit-tap-highlight-color: transparent;
+}
+.item-list__step-btn:active:not(:disabled),
+.item-list__step-btn:hover:not(:disabled) {
+	background: var(--color-primary);
+	color: var(--color-primary-text);
+}
+.item-list__step-btn:disabled {
+	opacity: 0.35;
+	cursor: default;
+}
+.item-list__step-val {
+	min-width: 40px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 0.95em;
+	font-weight: 700;
+	background: var(--color-main-background);
+	border-left: 1px solid var(--color-border);
+	border-right: 1px solid var(--color-border);
+	padding: 0 4px;
+	user-select: none;
 }
 .item-list__delete {
 	background: none;
