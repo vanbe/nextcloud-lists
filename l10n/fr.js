@@ -67,7 +67,12 @@ OC.L10N.register(
     "Save": "Enregistrer",
     "Create": "Créer",
     "List updated": "Liste mise à jour",
-    "Could not update list": "Impossible de modifier la liste"
+    "Could not update list": "Impossible de modifier la liste",
+    "Check all": "Tout cocher",
+    "Uncheck all": "Tout décocher",
+    "Check all {n} active items?": "Cocher les {n} éléments actifs ?",
+    "Check all {n} items in \"{name}\"?": "Cocher les {n} éléments de « {name} » ?",
+    "Uncheck all {n} checked items?": "Décocher les {n} éléments cochés ?"
   },
   "nplurals=2; plural=(n > 1);"
 );

@@ -1,5 +1,12 @@
 <template>
 	<div class="item-list">
+		<ConfirmModal
+			v-if="confirm.show"
+			:message="confirm.message"
+			:confirm-label="confirm.label"
+			@confirm="confirm.resolve(true); confirm.show = false"
+			@cancel="confirm.resolve(false); confirm.show = false" />
+
 		<ItemInput
 			:list-id="list.id"
 			:has-quantities="list.hasQuantities"
@@ -51,10 +58,24 @@
 
 			<!-- Unchecked items grouped by category -->
 			<ul ref="listEl" class="item-list__items">
+				<!-- "Check all active" header -->
+				<li v-if="store.unchecked.length > 1" class="item-list__separator item-list__separator--top">
+					<span></span>
+					<button class="item-list__bulk-btn" @click="askCheckAll">
+						{{ t('lists', 'Check all') }}
+					</button>
+				</li>
+
 				<!-- Categorised groups -->
 				<template v-for="group in groupedUnchecked" :key="group.categoryId ?? 'none'">
 					<li v-if="catStore.categories.length" class="item-list__group-header">
 						<span>{{ group.categoryName }}</span>
+						<button
+							v-if="group.items.length > 1"
+							class="item-list__bulk-btn"
+							@click="askCheckCategory(group)">
+							{{ t('lists', 'Check all') }}
+						</button>
 					</li>
 					<li
 						v-for="item in group.items"
@@ -114,9 +135,14 @@
 				<template v-if="store.checked.length">
 					<li class="item-list__separator">
 						<span>{{ t('lists', 'Checked') }}</span>
-						<button class="item-list__clear-checked" @click="clearChecked">
-							{{ t('lists', 'Clear all') }}
-						</button>
+						<div class="item-list__separator-actions">
+							<button class="item-list__bulk-btn" @click="askUncheckAll">
+								{{ t('lists', 'Uncheck all') }}
+							</button>
+							<button class="item-list__clear-checked" @click="clearChecked">
+								{{ t('lists', 'Clear all') }}
+							</button>
+						</div>
 					</li>
 					<li
 						v-for="item in store.checked"
@@ -148,11 +174,12 @@ import { translate as t } from '@nextcloud/l10n'
 import { useItemsStore } from '../store/items.js'
 import { useCategoriesStore } from '../store/categories.js'
 import ItemInput from './ItemInput.vue'
+import ConfirmModal from './ConfirmModal.vue'
 
 export default {
 	name: 'ItemList',
 
-	components: { ItemInput },
+	components: { ItemInput, ConfirmModal },
 
 	props: {
 		list: { type: Object, required: true },
@@ -168,10 +195,11 @@ export default {
 
 	data() {
 		return {
-			addCategoryId: null,   // category pre-selected for new items
-			editingCatId: null,    // category being renamed
+			addCategoryId: null,
+			editingCatId: null,
 			editingCatName: '',
-			catPickerItemId: null, // item whose category picker is open
+			catPickerItemId: null,
+			confirm: { show: false, message: '', label: 'OK', resolve: null },
 		}
 	},
 
@@ -323,6 +351,44 @@ export default {
 			const checked = [...this.store.checked]
 			await Promise.all(checked.map((item) => this.store.destroy(this.list.id, item.id)))
 		},
+
+		// ── Bulk actions ──────────────────────────────────────────────────────
+
+		ask(message, label) {
+			return new Promise((resolve) => {
+				this.confirm = { show: true, message, label, resolve }
+			})
+		},
+
+		async askCheckAll() {
+			const n = this.store.unchecked.length
+			const ok = await this.ask(
+				t('lists', 'Check all {n} active items?', { n }),
+				t('lists', 'Check all'),
+			)
+			if (!ok) return
+			await Promise.all(this.store.unchecked.map((item) => this.store.toggle(this.list.id, item.id)))
+		},
+
+		async askCheckCategory(group) {
+			const n = group.items.length
+			const ok = await this.ask(
+				t('lists', 'Check all {n} items in "{name}"?', { n, name: group.categoryName }),
+				t('lists', 'Check all'),
+			)
+			if (!ok) return
+			await Promise.all(group.items.map((item) => this.store.toggle(this.list.id, item.id)))
+		},
+
+		async askUncheckAll() {
+			const n = this.store.checked.length
+			const ok = await this.ask(
+				t('lists', 'Uncheck all {n} checked items?', { n }),
+				t('lists', 'Uncheck all'),
+			)
+			if (!ok) return
+			await Promise.all(this.store.checked.map((item) => this.store.toggle(this.list.id, item.id)))
+		},
 	},
 }
 </script>
@@ -410,6 +476,9 @@ export default {
 	text-transform: uppercase;
 	letter-spacing: 0.06em;
 	color: var(--color-text-lighter);
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
 }
 .item-list__item {
 	display: flex;
@@ -555,6 +624,37 @@ export default {
 	font-weight: bold;
 	text-transform: uppercase;
 	letter-spacing: 0.05em;
+}
+.item-list__separator--top {
+	padding: 4px 4px 4px;
+	border-bottom: 1px solid var(--color-border-dark);
+	margin-bottom: 4px;
+}
+.item-list__separator-actions {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+}
+.item-list__bulk-btn {
+	background: none;
+	border: 1px solid var(--color-border);
+	border-radius: 12px;
+	cursor: pointer;
+	font-size: 0.78em;
+	font-weight: normal;
+	text-transform: none;
+	letter-spacing: 0;
+	color: var(--color-text-lighter);
+	padding: 2px 8px;
+	white-space: nowrap;
+	transition: background 0.12s, color 0.12s;
+}
+.item-list__bulk-btn:hover {
+	background: var(--color-background-hover);
+	color: var(--color-main-text);
+}
+.item-list__group-header .item-list__bulk-btn {
+	margin-left: auto;
 }
 .item-list__clear-checked {
 	background: none;
