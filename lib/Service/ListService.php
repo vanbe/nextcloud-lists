@@ -86,6 +86,29 @@ class ListService {
     }
 
     /**
+     * Update the display order of lists owned by the user.
+     * Only IDs that belong to the user are updated; others are silently skipped.
+     *
+     * @param int[] $orderedIds  list IDs in the desired display order
+     */
+    public function reorder(string $uid, array $orderedIds): void {
+        $ownedLists = $this->mapper->findAll($uid);
+        $ownedIds   = array_map(fn($l) => $l->getId(), $ownedLists);
+
+        $positions = [];
+        $pos = 0;
+        foreach ($orderedIds as $id) {
+            if (in_array((int) $id, $ownedIds, true)) {
+                $positions[(int) $id] = $pos++;
+            }
+        }
+
+        if (!empty($positions)) {
+            $this->mapper->updatePositions($positions);
+        }
+    }
+
+    /**
      * @throws NotFoundException
      * @throws ForbiddenException
      */

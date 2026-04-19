@@ -5,11 +5,12 @@ return [
         ['name' => 'page#index', 'url' => '/', 'verb' => 'GET'],
     ],
     'ocs' => [
-        ['name' => 'list#index',   'url' => '/api/v1/lists',     'verb' => 'GET'],
-        ['name' => 'list#create',  'url' => '/api/v1/lists',     'verb' => 'POST'],
-        ['name' => 'list#show',    'url' => '/api/v1/lists/{id}', 'verb' => 'GET'],
-        ['name' => 'list#update',  'url' => '/api/v1/lists/{id}', 'verb' => 'PUT'],
-        ['name' => 'list#destroy', 'url' => '/api/v1/lists/{id}', 'verb' => 'DELETE'],
+        ['name' => 'list#index',   'url' => '/api/v1/lists',          'verb' => 'GET'],
+        ['name' => 'list#create',  'url' => '/api/v1/lists',          'verb' => 'POST'],
+        ['name' => 'list#reorder', 'url' => '/api/v1/lists/reorder',  'verb' => 'POST'],
+        ['name' => 'list#show',    'url' => '/api/v1/lists/{id}',     'verb' => 'GET'],
+        ['name' => 'list#update',  'url' => '/api/v1/lists/{id}',     'verb' => 'PUT'],
+        ['name' => 'list#destroy', 'url' => '/api/v1/lists/{id}',     'verb' => 'DELETE'],
 
         ['name' => 'item#suggest', 'url' => '/api/v1/lists/{listId}/items/suggest',     'verb' => 'GET'],
         ['name' => 'item#index',   'url' => '/api/v1/lists/{listId}/items',            'verb' => 'GET'],

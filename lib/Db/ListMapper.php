@@ -103,9 +103,24 @@ class ListMapper extends QBMapper {
                 $qb->expr()->isNotNull('s.id')
             ))
             ->groupBy('l.id')
-            ->orderBy('l.name', 'ASC');
+            ->orderBy('l.position', 'ASC')
+            ->addOrderBy('l.created_at', 'ASC');
 
         return $this->findEntities($qb);
+    }
+
+    /**
+     * Bulk-update positions for a set of lists.
+     * @param array<int,int> $positions  map of listId => position
+     */
+    public function updatePositions(array $positions): void {
+        foreach ($positions as $id => $position) {
+            $qb = $this->db->getQueryBuilder();
+            $qb->update($this->getTableName())
+                ->set('position', $qb->createNamedParameter($position, IQueryBuilder::PARAM_INT))
+                ->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)));
+            $qb->executeStatement();
+        }
     }
 
     public function insert(\OCP\AppFramework\Db\Entity $entity): \OCP\AppFramework\Db\Entity {

@@ -5,6 +5,13 @@
 				<button class="lists-nav__new-btn" @click="onNewList">
 					+ {{ t('lists', 'New list') }}
 				</button>
+				<button
+					v-if="store.lists.length > 1"
+					class="lists-nav__reorder-btn"
+					:title="t('lists', 'Reorder lists')"
+					@click="reorderOpen = true">
+					⇅
+				</button>
 			</li>
 			<li
 				v-for="list in store.lists"
@@ -58,6 +65,12 @@
 		:list="formTarget"
 		@close="formTarget = undefined"
 		@submit="onFormSubmit" />
+	<ReorderModal
+		v-if="reorderOpen"
+		:lists="store.lists"
+		:current-user="currentUser"
+		@save="onReorder"
+		@close="reorderOpen = false" />
 </template>
 
 <script>
@@ -67,11 +80,12 @@ import { useListsStore } from './store/lists.js'
 import ItemList from './components/ItemList.vue'
 import ShareModal from './components/ShareModal.vue'
 import ListFormModal from './components/ListFormModal.vue'
+import ReorderModal from './components/ReorderModal.vue'
 
 export default {
 	name: 'App',
 
-	components: { NcAppNavigation, ItemList, ShareModal, ListFormModal },
+	components: { NcAppNavigation, ItemList, ShareModal, ListFormModal, ReorderModal },
 
 	setup() {
 		const store = useListsStore()
@@ -84,6 +98,8 @@ export default {
 			openMenuId: null,
 			shareTarget: null,
 			formTarget: undefined, // undefined = hidden, null = create mode, object = edit mode
+			reorderOpen: false,
+			currentUser: window.OC?.currentUser ?? '',
 		}
 	},
 
@@ -126,6 +142,11 @@ export default {
 			this.formTarget = null // create mode
 		},
 
+		async onReorder(orderedIds) {
+			this.reorderOpen = false
+			await this.store.reorder(orderedIds)
+		},
+
 		async onFormSubmit({ name, description, hasQuantities }) {
 			if (this.formTarget === null) {
 				// create
@@ -144,9 +165,12 @@ export default {
 .lists-nav__new {
 	list-style: none;
 	padding: 4px 12px;
+	display: flex;
+	align-items: center;
+	gap: 4px;
 }
 .lists-nav__new-btn {
-	width: 100%;
+	flex: 1;
 	text-align: left;
 	background: none;
 	border: none;
@@ -154,6 +178,20 @@ export default {
 	padding: 8px;
 	color: var(--color-primary);
 	font-weight: bold;
+}
+.lists-nav__reorder-btn {
+	background: none;
+	border: none;
+	cursor: pointer;
+	color: var(--color-text-lighter);
+	font-size: 1.1em;
+	padding: 4px 8px;
+	border-radius: var(--border-radius);
+	flex-shrink: 0;
+}
+.lists-nav__reorder-btn:hover {
+	background: var(--color-background-hover);
+	color: var(--color-main-text);
 }
 .lists-nav__item {
 	list-style: none;

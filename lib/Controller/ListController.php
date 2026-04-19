@@ -68,6 +68,12 @@ class ListController extends OCSController {
     }
 
     #[NoAdminRequired]
+    public function reorder(array $order = []): DataResponse {
+        $this->service->reorder($this->userId, $order);
+        return new DataResponse();
+    }
+
+    #[NoAdminRequired]
     public function destroy(int $id): DataResponse {
         try {
             $this->service->delete($id, $this->userId);

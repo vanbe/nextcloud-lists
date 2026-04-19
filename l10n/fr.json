@@ -72,7 +72,11 @@
     "Uncheck all": "Tout décocher",
     "Check all {n} active items?": "Cocher les {n} éléments actifs ?",
     "Check all {n} items in \"{name}\"?": "Cocher les {n} éléments de « {name} » ?",
-    "Uncheck all {n} checked items?": "Décocher les {n} éléments cochés ?"
+    "Uncheck all {n} checked items?": "Décocher les {n} éléments cochés ?",
+    "Reorder lists": "Réorganiser les listes",
+    "Move up": "Monter",
+    "Move down": "Descendre",
+    "Could not save order": "Impossible d'enregistrer l'ordre"
   },
   "pluralForm": "nplurals=2; plural=(n > 1);"
 }

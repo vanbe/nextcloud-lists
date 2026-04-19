@@ -58,6 +58,8 @@ export const listsApi = {
 		axios.post(`${BASE}/lists?format=json`, { name, description, hasQuantities: hasQuantities ? 1 : 0 }, { headers: OCS_HEADERS }).then(unwrap),
 	update: (id, fields) =>
 		axios.put(`${BASE}/lists/${id}?format=json`, fields, { headers: OCS_HEADERS }).then(unwrap),
+	reorder: (order) =>
+		axios.post(`${BASE}/lists/reorder?format=json`, { order }, { headers: OCS_HEADERS }),
 	destroy: (id) =>
 		axios.delete(`${BASE}/lists/${id}?format=json`, { headers: OCS_HEADERS }),
 }

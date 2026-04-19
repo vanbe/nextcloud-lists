@@ -76,6 +76,21 @@ export const useListsStore = defineStore('lists', {
 			this.selectedId = id
 		},
 
+		async reorder(orderedIds) {
+			// Optimistic: reorder local list immediately
+			const byId = Object.fromEntries(this.lists.map((l) => [l.id, l]))
+			const reordered = orderedIds.map((id) => byId[id]).filter(Boolean)
+			const rest = this.lists.filter((l) => !orderedIds.includes(l.id))
+			this.lists = [...reordered, ...rest]
+			try {
+				await listsApi.reorder(orderedIds)
+			} catch {
+				showError(t('lists', 'Could not save order'))
+				// Revert by refetching
+				await this.fetchAll()
+			}
+		},
+
 		// Called after item toggle/create/delete to keep sidebar counts in sync
 		async refreshCounts() {
 			try {
