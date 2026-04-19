@@ -3,9 +3,9 @@
 		<div class="item-input__row">
 			<!-- Quantity stepper (left of title, only when list has quantities) -->
 			<div v-if="hasQuantities" class="item-input__stepper">
-				<button class="item-input__step-btn" type="button" :disabled="quantity <= 1" @click="quantity = Math.max(1, quantity - 1)">−</button>
+				<button class="item-input__step-btn" type="button" :disabled="quantity <= 1" @click="decrementQty">−</button>
 				<span class="item-input__step-val">{{ quantity }}</span>
-				<button class="item-input__step-btn" type="button" @click="quantity++">+</button>
+				<button class="item-input__step-btn" type="button" @click="incrementQty">+</button>
 			</div>
 
 			<input
@@ -122,6 +122,14 @@ export default {
 			} else {
 				this.submit()
 			}
+		},
+
+		incrementQty() {
+			this.quantity++
+		},
+
+		decrementQty() {
+			if (this.quantity > 1) this.quantity--
 		},
 
 		onBlur() {

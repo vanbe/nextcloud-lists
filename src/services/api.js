@@ -30,8 +30,8 @@ export const itemsApi = {
 		axios.get(`${BASE}/lists/${listId}/items/suggest?format=json&q=${encodeURIComponent(q)}`, { headers: OCS_HEADERS }).then(unwrap),
 	getAll: (listId) =>
 		axios.get(`${BASE}/lists/${listId}/items?format=json`, { headers: OCS_HEADERS }).then(unwrap),
-	create: (listId, title, categoryId = null) =>
-		axios.post(`${BASE}/lists/${listId}/items?format=json`, { title, categoryId }, { headers: OCS_HEADERS }).then(unwrap),
+	create: (listId, title, categoryId = null, quantity = null) =>
+		axios.post(`${BASE}/lists/${listId}/items?format=json`, { title, categoryId, quantity }, { headers: OCS_HEADERS }).then(unwrap),
 	update: (listId, id, fields) =>
 		axios.put(`${BASE}/lists/${listId}/items/${id}?format=json`, fields, { headers: OCS_HEADERS }).then(unwrap),
 	toggle: (listId, id) =>

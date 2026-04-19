@@ -66,8 +66,7 @@
 							:checked="item.checked"
 							class="item-list__checkbox"
 							@change="store.toggle(list.id, item.id)" />
-						<span class="item-list__title">{{ item.title }}</span>
-						<!-- Quantity stepper -->
+						<!-- Quantity stepper — left of title, fixed-width so titles align -->
 						<div v-if="list.hasQuantities" class="item-list__stepper" @click.stop>
 							<button
 								class="item-list__step-btn"
@@ -76,6 +75,7 @@
 							<span class="item-list__step-val">{{ item.quantity ?? 1 }}</span>
 							<button class="item-list__step-btn" @click="changeQty(item, +1)">+</button>
 						</div>
+						<span class="item-list__title">{{ item.title }}</span>
 						<!-- Category badge / picker -->
 						<div v-if="catStore.categories.length" class="item-list__cat-wrap">
 							<button
@@ -433,10 +433,14 @@ export default {
 }
 .item-list__title {
 	flex: 1;
+	font-size: 1.05em;
+	font-weight: 600;
 }
 .item-list__title--checked {
 	text-decoration: line-through;
 	color: var(--color-text-lighter);
+	font-weight: 400;
+	font-size: 1em;
 }
 
 /* ── Category badge / picker on item ── */
@@ -491,19 +495,19 @@ export default {
 /* ── Quantity stepper on item rows ── */
 .item-list__stepper {
 	display: flex;
-	align-items: stretch;
+	align-items: center;
 	flex-shrink: 0;
-	border: 1px solid var(--color-border);
-	border-radius: var(--border-radius);
-	overflow: hidden;
+	gap: 2px;
 }
 .item-list__step-btn {
 	background: var(--color-background-dark);
-	border: none;
+	border: 1px solid var(--color-border);
+	border-radius: 50%;
 	cursor: pointer;
-	font-size: 1.15em;
+	font-size: 1em;
 	line-height: 1;
-	/* Large touch target for mobile */
+	width: 28px;
+	height: 28px;
 	min-width: 44px;
 	min-height: 44px;
 	display: flex;
@@ -517,23 +521,20 @@ export default {
 .item-list__step-btn:hover:not(:disabled) {
 	background: var(--color-primary);
 	color: var(--color-primary-text);
+	border-color: var(--color-primary);
 }
 .item-list__step-btn:disabled {
 	opacity: 0.35;
 	cursor: default;
 }
 .item-list__step-val {
-	min-width: 40px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	font-size: 0.95em;
+	width: 32px;
+	text-align: center;
+	font-size: 0.9em;
 	font-weight: 700;
-	background: var(--color-main-background);
-	border-left: 1px solid var(--color-border);
-	border-right: 1px solid var(--color-border);
-	padding: 0 4px;
+	color: var(--color-primary);
 	user-select: none;
+	flex-shrink: 0;
 }
 .item-list__delete {
 	background: none;
