@@ -51,6 +51,17 @@ export const useItemsStore = defineStore('items', {
 			}
 		},
 
+		async updateQuantity(listId, id, quantity) {
+			try {
+				// Send 0 as "null" sentinel (NC drops JSON null via isset)
+				const item = await itemsApi.update(listId, id, { quantity: quantity ?? 0 })
+				const idx = this.items.findIndex((i) => i.id === id)
+				if (idx !== -1) this.items[idx] = item
+			} catch {
+				showError(t('lists', 'Could not update item'))
+			}
+		},
+
 		async setCategory(listId, id, categoryId) {
 			try {
 				// NC's IRequest uses isset() so JSON null is invisible — send 0 as "unassign" sentinel

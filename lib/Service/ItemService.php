@@ -31,7 +31,7 @@ class ItemService {
     }
 
     /** @throws NotFoundException|ForbiddenException */
-    public function create(int $listId, string $uid, string $title, ?string $description = null, ?int $categoryId = null): ItemEntity {
+    public function create(int $listId, string $uid, string $title, ?string $description = null, ?int $categoryId = null, ?int $quantity = null): ItemEntity {
         if (!$this->permissionService->canWrite($listId, $uid)) {
             throw new ForbiddenException();
         }
@@ -43,12 +43,13 @@ class ItemService {
         $entity->setChecked(0);
         $entity->setPosition(0);
         $entity->setCategoryId($categoryId);
+        $entity->setQuantity($quantity);
 
         return $this->itemMapper->insert($entity);
     }
 
     /** @throws NotFoundException|ForbiddenException */
-    public function update(int $id, int $listId, string $uid, ?string $title = null, ?string $description = null, int|null|false $categoryId = false): ItemEntity {
+    public function update(int $id, int $listId, string $uid, ?string $title = null, ?string $description = null, int|null|false $categoryId = false, int|null|false $quantity = false): ItemEntity {
         if (!$this->permissionService->canWrite($listId, $uid)) {
             throw new ForbiddenException();
         }
@@ -60,9 +61,12 @@ class ItemService {
         if ($description !== null) {
             $entity->setDescription($description);
         }
-        // false = not provided; null = explicitly unset; int = assign category
         if ($categoryId !== false) {
             $entity->setCategoryId($categoryId);
+        }
+        // quantity: false = not provided, null = unset (send 0 as sentinel from JS), int = set
+        if ($quantity !== false) {
+            $entity->setQuantity($quantity === 0 ? null : $quantity);
         }
 
         return $this->itemMapper->update($entity);

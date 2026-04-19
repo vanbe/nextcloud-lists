@@ -49,7 +49,7 @@ class ItemController extends OCSController {
     }
 
     #[NoAdminRequired]
-    public function create(int $listId, string $title, ?string $description = null, ?int $categoryId = null): DataResponse {
+    public function create(int $listId, string $title, ?string $description = null, ?int $categoryId = null, ?int $quantity = null): DataResponse {
         if (trim($title) === '') {
             return new DataResponse(['message' => 'Title is required'], Http::STATUS_BAD_REQUEST);
         }
@@ -57,7 +57,7 @@ class ItemController extends OCSController {
             return new DataResponse(['message' => 'Title too long (max 255)'], Http::STATUS_BAD_REQUEST);
         }
         try {
-            $entity = $this->service->create($listId, $this->userId, $title, $description, $categoryId);
+            $entity = $this->service->create($listId, $this->userId, $title, $description, $categoryId, $quantity);
             return new DataResponse($entity->jsonSerialize(), Http::STATUS_CREATED);
         } catch (NotFoundException) {
             return new DataResponse(['message' => 'List not found'], Http::STATUS_NOT_FOUND);
@@ -67,15 +67,18 @@ class ItemController extends OCSController {
     }
 
     #[NoAdminRequired]
-    public function update(int $listId, int $id, ?string $title = null, ?string $description = null, mixed $categoryId = false): DataResponse {
-        // categoryId: false = not provided; null or 0 = unassign (0 is sentinel because NC's
-        // IRequest::getParam uses isset() which treats JSON null as missing); int > 0 = assign
+    public function update(int $listId, int $id, ?string $title = null, ?string $description = null, mixed $categoryId = false, mixed $quantity = false): DataResponse {
+        // categoryId / quantity: false = not provided; null or 0 = unassign sentinel (NC isset() drops JSON null)
         $resolvedCategory = false;
         if ($categoryId !== false) {
             $resolvedCategory = ($categoryId === null || $categoryId === 0) ? null : (int) $categoryId;
         }
+        $resolvedQuantity = false;
+        if ($quantity !== false) {
+            $resolvedQuantity = ($quantity === null) ? 0 : (int) $quantity;
+        }
         try {
-            $entity = $this->service->update($id, $listId, $this->userId, $title, $description, $resolvedCategory);
+            $entity = $this->service->update($id, $listId, $this->userId, $title, $description, $resolvedCategory, $resolvedQuantity);
             return new DataResponse($entity->jsonSerialize());
         } catch (NotFoundException) {
             return new DataResponse(['message' => 'Not found'], Http::STATUS_NOT_FOUND);

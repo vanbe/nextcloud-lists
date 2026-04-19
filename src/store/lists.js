@@ -32,14 +32,30 @@ export const useListsStore = defineStore('lists', {
 			}
 		},
 
-		async create(name) {
+		async create(name, description = null, hasQuantities = false) {
 			try {
-				const list = await listsApi.create(name)
+				const list = await listsApi.create(name, description, hasQuantities)
 				this.lists.push(list)
 				this.selectedId = list.id
 				showSuccess(t('lists', 'List created'))
 			} catch {
 				showError(t('lists', 'Could not create list'))
+			}
+		},
+
+		async update(id, fields) {
+			try {
+				// hasQuantities: send 1/0 (not boolean) so NC isset() sees it
+				const payload = { ...fields }
+				if ('hasQuantities' in payload) {
+					payload.hasQuantities = payload.hasQuantities ? 1 : 0
+				}
+				const list = await listsApi.update(id, payload)
+				const idx = this.lists.findIndex((l) => l.id === id)
+				if (idx !== -1) this.lists[idx] = { ...this.lists[idx], ...list }
+				showSuccess(t('lists', 'List updated'))
+			} catch {
+				showError(t('lists', 'Could not update list'))
 			}
 		},
 

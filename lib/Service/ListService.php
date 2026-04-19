@@ -47,12 +47,13 @@ class ListService {
         return $this->mapper->find($id, $uid);
     }
 
-    public function create(string $uid, string $name, ?string $description = null, ?string $icon = null): ListEntity {
+    public function create(string $uid, string $name, ?string $description = null, ?string $icon = null, int $hasQuantities = 0): ListEntity {
         $entity = new ListEntity();
         $entity->setUid($uid);
         $entity->setName($name);
         $entity->setDescription($description);
         $entity->setIcon($icon);
+        $entity->setHasQuantities($hasQuantities);
 
         return $this->mapper->insert($entity);
     }
@@ -61,7 +62,7 @@ class ListService {
      * @throws NotFoundException
      * @throws ForbiddenException
      */
-    public function update(int $id, string $uid, ?string $name = null, ?string $description = null, ?string $icon = null): ListEntity {
+    public function update(int $id, string $uid, ?string $name = null, ?string $description = null, ?string $icon = null, int|false $hasQuantities = false): ListEntity {
         $entity = $this->mapper->find($id, $uid);
 
         if ($entity->getUid() !== $uid) {
@@ -76,6 +77,9 @@ class ListService {
         }
         if ($icon !== null) {
             $entity->setIcon($icon);
+        }
+        if ($hasQuantities !== false) {
+            $entity->setHasQuantities($hasQuantities);
         }
 
         return $this->mapper->update($entity);

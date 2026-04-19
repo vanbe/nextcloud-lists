@@ -1,7 +1,7 @@
 <template>
 	<div class="item-list">
 		<ItemInput
-			:list-id="listId"
+			:list-id="list.id"
 			:categories="catStore.categories"
 			:default-category-id="addCategoryId"
 			@add="onAdd"
@@ -64,8 +64,18 @@
 							type="checkbox"
 							:checked="item.checked"
 							class="item-list__checkbox"
-							@change="store.toggle(listId, item.id)" />
+							@change="store.toggle(list.id, item.id)" />
 						<span class="item-list__title">{{ item.title }}</span>
+						<!-- Quantity -->
+						<input
+							v-if="list.hasQuantities"
+							:value="item.quantity ?? 1"
+							class="item-list__qty"
+							type="number"
+							min="1"
+							step="1"
+							@change.stop="onQuantityChange(item, +$event.target.value)"
+							@click.stop />
 						<!-- Category badge / picker -->
 						<div v-if="catStore.categories.length" class="item-list__cat-wrap">
 							<button
@@ -94,7 +104,7 @@
 						<button
 							class="item-list__delete"
 							:title="t('lists', 'Delete')"
-							@click="store.destroy(listId, item.id)">
+							@click="store.destroy(list.id, item.id)">
 							✕
 						</button>
 					</li>
@@ -117,12 +127,12 @@
 							type="checkbox"
 							:checked="item.checked"
 							class="item-list__checkbox"
-							@change="store.toggle(listId, item.id)" />
+							@change="store.toggle(list.id, item.id)" />
 						<span class="item-list__title item-list__title--checked">{{ item.title }}</span>
 						<button
 							class="item-list__delete"
 							:title="t('lists', 'Delete')"
-							@click="store.destroy(listId, item.id)">
+							@click="store.destroy(list.id, item.id)">
 							✕
 						</button>
 					</li>
@@ -145,14 +155,14 @@ export default {
 	components: { ItemInput },
 
 	props: {
-		listId: { type: Number, required: true },
+		list: { type: Object, required: true },
 	},
 
 	setup(props) {
 		const store = useItemsStore()
 		const catStore = useCategoriesStore()
-		store.fetchAll(props.listId)
-		catStore.fetchAll(props.listId)
+		store.fetchAll(props.list.id)
+		catStore.fetchAll(props.list.id)
 		return { store, catStore }
 	},
 
@@ -194,7 +204,7 @@ export default {
 	},
 
 	watch: {
-		listId(id) {
+		'list.id'(id) {
 			this.store.reset()
 			this.catStore.reset()
 			this.store.fetchAll(id)
@@ -228,7 +238,7 @@ export default {
 		async onAddCategory() {
 			const name = window.prompt(t('lists', 'Category name'))
 			if (name?.trim()) {
-				const cat = await this.catStore.create(this.listId, name.trim())
+				const cat = await this.catStore.create(this.list.id, name.trim())
 				if (cat) this.addCategoryId = cat.id
 			}
 		},
@@ -247,7 +257,7 @@ export default {
 		async confirmRename(cat) {
 			const name = this.editingCatName.trim()
 			if (name && name !== cat.name) {
-				await this.catStore.rename(this.listId, cat.id, name)
+				await this.catStore.rename(this.list.id, cat.id, name)
 			}
 			this.cancelRename()
 		},
@@ -260,7 +270,7 @@ export default {
 		async onDeleteCategory(cat) {
 			if (!window.confirm(t('lists', 'Delete category "{name}"? Items will be unassigned.', { name: cat.name }))) return
 			if (this.addCategoryId === cat.id) this.addCategoryId = null
-			await this.catStore.destroy(this.listId, cat.id)
+			await this.catStore.destroy(this.list.id, cat.id)
 			// Reflect unassignment in local item state without a full refetch
 			this.store.items.forEach((item) => {
 				if (item.categoryId === cat.id) item.categoryId = null
@@ -279,16 +289,16 @@ export default {
 
 		async assignCategory(item, categoryId) {
 			this.catPickerItemId = null
-			await this.store.setCategory(this.listId, item.id, categoryId)
+			await this.store.setCategory(this.list.id, item.id, categoryId)
 		},
 
 		async onAdd(title) {
-			await this.store.create(this.listId, title, this.addCategoryId)
+			await this.store.create(this.list.id, title, this.addCategoryId)
 		},
 
 		async onSelectSuggestion(item) {
 			if (item.checked) {
-				await this.store.toggle(this.listId, item.id)
+				await this.store.toggle(this.list.id, item.id)
 			}
 			await nextTick()
 			this.scrollToItem(item.id)
@@ -303,9 +313,14 @@ export default {
 			}
 		},
 
+		async onQuantityChange(item, value) {
+			const qty = Math.max(1, Math.round(value) || 1)
+			await this.store.updateQuantity(this.list.id, item.id, qty)
+		},
+
 		async clearChecked() {
 			const checked = [...this.store.checked]
-			await Promise.all(checked.map((item) => this.store.destroy(this.listId, item.id)))
+			await Promise.all(checked.map((item) => this.store.destroy(this.list.id, item.id)))
 		},
 	},
 }
@@ -472,6 +487,17 @@ export default {
 	background: var(--color-background-hover);
 }
 
+.item-list__qty {
+	width: 60px;
+	padding: 3px 6px;
+	border: 1px solid var(--color-border);
+	border-radius: var(--border-radius);
+	background: var(--color-main-background);
+	color: var(--color-main-text);
+	font-size: 0.9em;
+	text-align: center;
+	flex-shrink: 0;
+}
 .item-list__delete {
 	background: none;
 	border: none;

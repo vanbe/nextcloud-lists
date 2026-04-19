@@ -55,7 +55,19 @@ OC.L10N.register(
     "Could not load categories": "Impossible de charger les catégories",
     "Could not create category": "Impossible de créer la catégorie",
     "Could not rename category": "Impossible de renommer la catégorie",
-    "Could not delete category": "Impossible de supprimer la catégorie"
+    "Could not delete category": "Impossible de supprimer la catégorie",
+    "Edit": "Modifier",
+    "Edit list": "Modifier la liste",
+    "Name": "Nom",
+    "List name": "Nom de la liste",
+    "Description": "Description",
+    "Optional description\u2026": "Description optionnelle\u2026",
+    "Items have quantities": "Les éléments ont des quantités",
+    "Cancel": "Annuler",
+    "Save": "Enregistrer",
+    "Create": "Créer",
+    "List updated": "Liste mise à jour",
+    "Could not update list": "Impossible de modifier la liste"
   },
   "nplurals=2; plural=(n > 1);"
 );

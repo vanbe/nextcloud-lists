@@ -21,6 +21,9 @@
 					⋮
 				</button>
 				<div v-if="openMenuId === list.id" class="lists-nav__menu">
+					<button class="lists-nav__menu-item" @click.stop="openEdit(list)">
+						{{ t('lists', 'Edit') }}
+					</button>
 					<button class="lists-nav__menu-item" @click.stop="openShare(list)">
 						{{ t('lists', 'Share') }}
 					</button>
@@ -45,11 +48,16 @@
 		<div v-else class="lists-view">
 			<h2>{{ store.selected.name }}</h2>
 			<p v-if="store.selected.description" class="lists-view__description">{{ store.selected.description }}</p>
-			<ItemList :list-id="store.selected.id" />
+			<ItemList :list="store.selected" />
 		</div>
 	</main>
 
 	<ShareModal v-if="shareTarget" :list="shareTarget" @close="shareTarget = null" />
+	<ListFormModal
+		v-if="formTarget !== undefined"
+		:list="formTarget"
+		@close="formTarget = undefined"
+		@submit="onFormSubmit" />
 </template>
 
 <script>
@@ -58,11 +66,12 @@ import { translate as t } from '@nextcloud/l10n'
 import { useListsStore } from './store/lists.js'
 import ItemList from './components/ItemList.vue'
 import ShareModal from './components/ShareModal.vue'
+import ListFormModal from './components/ListFormModal.vue'
 
 export default {
 	name: 'App',
 
-	components: { NcAppNavigation, ItemList, ShareModal },
+	components: { NcAppNavigation, ItemList, ShareModal, ListFormModal },
 
 	setup() {
 		const store = useListsStore()
@@ -74,6 +83,7 @@ export default {
 		return {
 			openMenuId: null,
 			shareTarget: null,
+			formTarget: undefined, // undefined = hidden, null = create mode, object = edit mode
 		}
 	},
 
@@ -101,17 +111,30 @@ export default {
 			this.shareTarget = list
 		},
 
+		openEdit(list) {
+			this.openMenuId = null
+			this.formTarget = list
+		},
+
 		async onDelete(list) {
 			this.openMenuId = null
 			if (!window.confirm(t('lists', 'Delete "{name}"? This will permanently remove all its items.', { name: list.name }))) return
 			await this.store.destroy(list.id)
 		},
 
-		async onNewList() {
-			const name = window.prompt(t('lists', 'List name (max 255 characters)'))
-			if (name?.trim()) {
-				await this.store.create(name.trim().slice(0, 255))
+		onNewList() {
+			this.formTarget = null // create mode
+		},
+
+		async onFormSubmit({ name, description, hasQuantities }) {
+			if (this.formTarget === null) {
+				// create
+				await this.store.create(name, description, hasQuantities)
+			} else {
+				// edit
+				await this.store.update(this.formTarget.id, { name, description, hasQuantities })
 			}
+			this.formTarget = undefined
 		},
 	},
 }
@@ -205,7 +228,12 @@ export default {
 	background: var(--color-background-hover);
 }
 .lists-nav__menu-item--danger {
-	color: var(--color-error);
+	color: #c0392b;
+	font-weight: 500;
+}
+.lists-nav__menu-item--danger:hover {
+	background: #fdecea;
+	color: #a93226;
 }
 .lists-view {
 	padding: 12px 0 24px 24px;

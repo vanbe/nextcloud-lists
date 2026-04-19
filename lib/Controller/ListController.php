@@ -30,14 +30,14 @@ class ListController extends OCSController {
     }
 
     #[NoAdminRequired]
-    public function create(string $name, ?string $description = null, ?string $icon = null): DataResponse {
+    public function create(string $name, ?string $description = null, ?string $icon = null, int $hasQuantities = 0): DataResponse {
         if (trim($name) === '') {
             return new DataResponse(['message' => 'Name is required'], Http::STATUS_BAD_REQUEST);
         }
         if (mb_strlen($name) > 255) {
             return new DataResponse(['message' => 'Name too long (max 255)'], Http::STATUS_BAD_REQUEST);
         }
-        $entity = $this->service->create($this->userId, $name, $description, $icon);
+        $entity = $this->service->create($this->userId, $name, $description, $icon, $hasQuantities);
         return new DataResponse($entity->jsonSerialize(), Http::STATUS_CREATED);
     }
 
@@ -52,9 +52,13 @@ class ListController extends OCSController {
     }
 
     #[NoAdminRequired]
-    public function update(int $id, ?string $name = null, ?string $description = null, ?string $icon = null): DataResponse {
+    public function update(int $id, ?string $name = null, ?string $description = null, ?string $icon = null, mixed $hasQuantities = false): DataResponse {
+        $resolvedHasQ = false;
+        if ($hasQuantities !== false) {
+            $resolvedHasQ = ($hasQuantities) ? 1 : 0;
+        }
         try {
-            $entity = $this->service->update($id, $this->userId, $name, $description, $icon);
+            $entity = $this->service->update($id, $this->userId, $name, $description, $icon, $resolvedHasQ);
             return new DataResponse($entity->jsonSerialize());
         } catch (NotFoundException) {
             return new DataResponse(['message' => 'Not found'], Http::STATUS_NOT_FOUND);
