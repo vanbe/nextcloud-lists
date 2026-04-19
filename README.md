@@ -19,7 +19,58 @@ TODO lists and shopping lists for Nextcloud, with user/group sharing, categories
 
 ---
 
-## Installation (production)
+## Installation — Nextcloud AIO (Docker All-In-One)
+
+AIO manages Nextcloud inside a container named `nextcloud-aio-nextcloud`. Custom apps must be copied into the container's `custom_apps/` directory, which lives inside a named Docker volume and persists across AIO updates.
+
+**1. Build the archive** (on your dev machine):
+```bash
+make package
+# → build/artifacts/lists.tar.gz
+```
+
+**2. Copy the archive to your server**, then run:
+```bash
+# Extract into the AIO Nextcloud container
+docker exec nextcloud-aio-nextcloud mkdir -p /var/www/html/custom_apps
+docker cp lists.tar.gz nextcloud-aio-nextcloud:/tmp/lists.tar.gz
+docker exec nextcloud-aio-nextcloud \
+  tar -xzf /tmp/lists.tar.gz -C /var/www/html/custom_apps/
+docker exec nextcloud-aio-nextcloud \
+  chown -R www-data:www-data /var/www/html/custom_apps/lists
+
+# Enable the app (migrations run automatically)
+docker exec --user www-data nextcloud-aio-nextcloud \
+  php occ app:enable lists
+```
+
+**3. Verify** — navigate to your Nextcloud instance; "Lists" should appear in the app menu.
+
+> The `custom_apps/` directory is part of the Nextcloud data volume, so the app **survives AIO updates and container restarts**. You only need to re-run `occ app:enable lists` if AIO explicitly resets app state.
+
+### Updating the app on AIO
+
+```bash
+# On your dev machine
+make package
+
+# On the server — replace the app files
+docker cp lists.tar.gz nextcloud-aio-nextcloud:/tmp/lists.tar.gz
+docker exec nextcloud-aio-nextcloud \
+  tar -xzf /tmp/lists.tar.gz -C /var/www/html/custom_apps/
+docker exec nextcloud-aio-nextcloud \
+  chown -R www-data:www-data /var/www/html/custom_apps/lists
+
+# Apply any new migrations
+docker exec --user www-data nextcloud-aio-nextcloud \
+  php occ app:disable lists
+docker exec --user www-data nextcloud-aio-nextcloud \
+  php occ app:enable lists
+```
+
+---
+
+## Installation — standard (non-AIO)
 
 1. Extract the archive into your Nextcloud custom apps directory:
    ```bash
@@ -30,8 +81,6 @@ TODO lists and shopping lists for Nextcloud, with user/group sharing, categories
    sudo -u www-data php /var/www/nextcloud/occ app:enable lists
    ```
 3. Migrations run automatically on first enable.
-
-> **Nextcloud AIO**: place the extracted `lists/` folder in the volume mounted at `custom_apps/`, then enable via the AIO interface or `occ`.
 
 ---
 
@@ -84,7 +133,21 @@ The archive contains only runtime files (`appinfo/`, `lib/`, `js/`, `l10n/`, `im
 
 ## Troubleshooting
 
-**App doesn't appear after enable**
+**App doesn't appear in the menu (AIO)**
+```bash
+docker exec --user www-data nextcloud-aio-nextcloud php occ app:enable lists
+```
+If that fails with "app not found", check that `custom_apps/lists/appinfo/info.xml` exists inside the container:
+```bash
+docker exec nextcloud-aio-nextcloud ls /var/www/html/custom_apps/lists/appinfo/
+```
+
+**Internal server error (AIO)**
+```bash
+docker exec nextcloud-aio-nextcloud tail -50 /var/www/html/data/nextcloud.log
+```
+
+**App doesn't appear after enable (dev container)**
 ```bash
 docker compose -f docker-compose.dev.yml exec --user www-data nextcloud \
   php occ config:system:set apps_paths 1 path --value=/var/www/html/custom_apps
@@ -92,21 +155,16 @@ docker compose -f docker-compose.dev.yml exec --user www-data nextcloud \
   php occ app:enable lists
 ```
 
-**Internal server error on load**
-Check the NC log:
-```bash
-docker compose -f docker-compose.dev.yml exec nextcloud \
-  tail -f /var/www/html/data/nextcloud.log
-```
-
 **Migrations not applied after a schema change**
 Disable and re-enable the app to trigger migration:
 ```bash
-occ app:disable lists && occ app:enable lists
+# AIO
+docker exec --user www-data nextcloud-aio-nextcloud php occ app:disable lists
+docker exec --user www-data nextcloud-aio-nextcloud php occ app:enable lists
 ```
 
 **Frontend not updating**
-Run `npm run build` (or `npm run dev` for watch mode) then hard-refresh (`Ctrl+Shift+R`).
+Run `npm run build` then hard-refresh (`Ctrl+Shift+R`).
 
 ---
 
