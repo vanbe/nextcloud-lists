@@ -9,39 +9,25 @@ Application Nextcloud de TODO / listes de courses, avec partage user/groupe.
 - Dev env : Docker (nextcloud:33-apache) + WSL Ubuntu
 
 ## Documentation du projet
-AVANT de coder une nouvelle partie, lis le doc correspondant :
 - Architecture générale : `docs/01-architecture.md`
-- **Pièges à éviter (à relire souvent) : `docs/02-gotchas.md`**
+- **Pièges à éviter : `docs/02-gotchas.md`**
 - Specs UI : `docs/03-ui-ux.md`
 - Setup dev : `docs/04-dev-setup.md`
 - Packaging : `docs/05-packaging.md`
 - Tests : `docs/06-testing.md`
-- **Ordre de travail imposé : `docs/07-roadmap.md`** — on suit les jalons 1 à 13 dans l'ordre.
 
 ## Règles de travail
-1. Respecte STRICTEMENT l'ordre des jalons du roadmap. Pas de saut.
-2. À chaque jalon terminé : commit git avec message `feat(jalon-N): description`.
-3. Avant d'écrire du code PHP Nextcloud, consulte `docs/02-gotchas.md`.
-4. Aucun SQL brut non portable. Toujours QBMapper / QueryBuilder.
-5. Aucun `v-html` dans les composants Vue.
-6. Si tu bloques : lis les logs du container avant de tenter un workaround.
+1. Avant d'écrire du code PHP Nextcloud, consulte `docs/02-gotchas.md`.
+2. Aucun SQL brut non portable. Toujours QBMapper / QueryBuilder.
+3. Aucun `v-html` dans les composants Vue.
+4. Si tu bloques : lis les logs du container avant de tenter un workaround.
 
-## État actuel
-Jalon en cours : **10 — Tests PHPUnit + Vitest**
-Dernier commit : `feat(jalon-9): polish UX — toasts, cascade delete, confirm dialog, clear checked`
-
-### Pièges découverts (à ne pas réintroduire)
+## Pièges découverts (à ne pas réintroduire)
 - `NcAppContent` ne rend pas son slot par défaut dans @vue/compat MODE:2 → remplacé par `<main id="app-content">` natif.
 - `#lists-root` est dans `#content` (flex container NC) mais pas enfant direct → `display: contents` dans main.js après montage pour que `#app-navigation` et `#app-content` deviennent des flex items directs de NC.
 - Le bouton toggle NcAppNavigation chevauche le titre → `padding-top: 44px` sur le h2.
-
-### Jalons terminés
-- ✅ **1 — Squelette + enable** : `info.xml`, `Application.php`, `PageController`, template `index.php`, icône, Docker, Makefile.
-- ✅ **2 — DB + entités + mappers** : migration 3 tables (`lists`, `lists_items`, `lists_shares`), `ListEntity`/`ListMapper`, exceptions, `occ lists:debug:seed`, tests PHPUnit.
-- ✅ **3 — API Lists CRUD** : `ListService`, `ListController` (OCSController), routes OCS, validé par cURL (GET/POST/PUT/DELETE + 404/403).
-- ✅ **4 — SPA frontend minimale** : `package.json`, `webpack.config.js`, `src/main.js`, `App.vue` (NcAppNavigation + main#app-content), store Pinia (`lists.js`), service API (`api.js`). Build webpack OK, app Vue montée dans NC.
-- ✅ **5 — Items CRUD + toggle** : `ItemEntity`, `ItemMapper`, `ItemService`, `ItemController`, routes OCS imbriquées, `itemsApi`, store `items.js`, `ItemList.vue` (ajout/toggle/suppression, tri cochés/non-cochés). Piège layout NC résolu.
-- ✅ **6 — Partage** : `ShareEntity`/`ShareMapper` (sentinelle -1 obligatoire sur int), `PermissionService` (IGroupManager + IUserManager), `ShareService`/`ShareController`, `ListMapper.findAllForUser` (LEFT JOIN + GROUP BY — pas EXISTS), menu ⋮ sidebar + `ShareModal.vue`.
-- ✅ **7 — Autocomplete items** : `ItemMapper.suggest()` (LOWER LIKE), route `GET /items/suggest`, `ItemInput.vue` (debounce 150ms, min 2 chars, ↑↓ Enter Esc), scroll+highlight+uncheck sur sélection suggestion.
-- ✅ **8 — Modale de partage** : `UserController` (searchUsers/searchGroups, IUserManager/IGroupManager), `UserGroupSearch.vue`, `ShareModal.vue` (2-step pending, inline perms update, Esc close).
-- ✅ **9 — Polish UX** : cascade delete (ItemMapper+ShareMapper dans ListService.delete), toasts @nextcloud/dialogs sur toutes les actions, confirm avant suppression liste, maxlength 255 PHP+HTML, bouton "Clear all" pour items cochés.
+- NC `IRequest` utilise `isset()` pour les paramètres → JSON `null` est invisible. Utiliser `0` comme sentinelle "désassigner" côté JS, traiter `0 → null` en PHP.
+- NC `Entity::setter()` ignore les valeurs identiques à l'init → initialiser les champs `int` nullable à `-1` (pas `0`) pour que `setField(0)` marque le champ comme modifié.
+- `findAllForUser` avec LEFT JOIN : utiliser `GROUP BY l.id` pour éviter les doublons quand plusieurs shares matchent. Un subquery EXISTS échoue avec le préfixe de table NC.
+- `\OCP\Util::imagePath()` n'existe pas dans NC 33 → construire l'URL manuellement (`/apps/{appid}/img/...`).
+- `getCurrentUser()` de `@nextcloud/auth` pour obtenir l'UID de session — `window.OC?.currentUser` peut être vide dans le contexte Vue.
