@@ -43,10 +43,10 @@ export const itemsApi = {
 export const categoriesApi = {
 	getAll: (listId) =>
 		axios.get(`${BASE}/lists/${listId}/categories?format=json`, { headers: OCS_HEADERS }).then(unwrap),
-	create: (listId, name) =>
-		axios.post(`${BASE}/lists/${listId}/categories?format=json`, { name }, { headers: OCS_HEADERS }).then(unwrap),
-	update: (listId, id, name) =>
-		axios.put(`${BASE}/lists/${listId}/categories/${id}?format=json`, { name }, { headers: OCS_HEADERS }).then(unwrap),
+	create: (listId, name, icon = '') =>
+		axios.post(`${BASE}/lists/${listId}/categories?format=json`, { name, icon }, { headers: OCS_HEADERS }).then(unwrap),
+	update: (listId, id, fields) =>
+		axios.put(`${BASE}/lists/${listId}/categories/${id}?format=json`, fields, { headers: OCS_HEADERS }).then(unwrap),
 	destroy: (listId, id) =>
 		axios.delete(`${BASE}/lists/${listId}/categories/${id}?format=json`, { headers: OCS_HEADERS }),
 }

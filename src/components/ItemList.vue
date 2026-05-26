@@ -1,5 +1,22 @@
 <template>
-	<div class="item-list">
+	<div
+		class="item-list"
+		@touchstart.passive="onPullStart"
+		@touchmove="onPullMove"
+		@touchend.passive="onPullEnd"
+		@touchcancel.passive="onPullEnd">
+		<div
+			class="item-list__pull"
+			:class="{
+				'item-list__pull--refreshing': pullRefreshing,
+				'item-list__pull--animate': !pull.tracking,
+			}"
+			:style="{ height: pullHeight + 'px' }">
+			<span v-if="pullRefreshing" class="item-list__pull-label">{{ t('lists', 'Refreshing…') }}</span>
+			<span v-else-if="pullHeight >= pullThreshold" class="item-list__pull-label">{{ t('lists', 'Release to refresh') }}</span>
+			<span v-else-if="pullHeight > 0" class="item-list__pull-label">{{ t('lists', 'Pull to refresh') }}</span>
+		</div>
+
 		<ConfirmModal
 			v-if="confirm.show"
 			:message="confirm.message"
@@ -26,35 +43,24 @@
 					v-for="cat in catStore.categories"
 					:key="cat.id"
 					class="cat-bar__chip"
-					:class="{ 'cat-bar__chip--active': addCategoryId === cat.id }"
+					:class="{ 'cat-bar__chip--active': addCategoryId === cat.id, 'cat-bar__chip--icon': !!cat.icon }"
+					:title="cat.name"
 					@click="toggleAddCategory(cat.id)">
-					<span
-						v-if="editingCatId !== cat.id"
-						class="cat-bar__chip-name"
-						@dblclick.stop="startRename(cat)">
-						{{ cat.name }}
-					</span>
-					<input
-						v-else
-						:ref="`catInput_${cat.id}`"
-						v-model="editingCatName"
-						class="cat-bar__chip-input"
-						type="text"
-						maxlength="255"
-						@keydown.enter.prevent="confirmRename(cat)"
-						@keydown.esc.prevent="cancelRename"
-						@blur="confirmRename(cat)" />
-					<button
-						class="cat-bar__chip-del"
-						:title="t('lists', 'Delete category')"
-						@click.stop="onDeleteCategory(cat)">
-						✕
-					</button>
+					<span v-if="cat.icon" class="cat-bar__chip-icon">{{ cat.icon }}</span>
+					<span v-else class="cat-bar__chip-name">{{ cat.name }}</span>
+				</button>
+				<button class="cat-bar__manage" :title="t('lists', 'Manage categories')" @click="manageOpen = true">
+					⚙
 				</button>
 				<button class="cat-bar__add" @click="onAddCategory">
-					+ {{ t('lists', 'Category') }}
+					+
 				</button>
 			</div>
+
+			<ManageCategoriesModal
+				v-if="manageOpen"
+				:list-id="list.id"
+				@close="manageOpen = false" />
 
 			<!-- Unchecked items grouped by category -->
 			<ul ref="listEl" class="item-list__items">
@@ -69,7 +75,10 @@
 				<!-- Categorised groups -->
 				<template v-for="group in groupedUnchecked" :key="group.categoryId ?? 'none'">
 					<li v-if="catStore.categories.length" class="item-list__group-header">
-						<span>{{ group.categoryName }}</span>
+						<span>
+							<span v-if="group.categoryIcon" class="item-list__group-icon">{{ group.categoryIcon }}</span>
+							{{ group.categoryName }}
+						</span>
 						<button
 							v-if="group.items.length > 1"
 							class="item-list__bulk-btn"
@@ -96,7 +105,24 @@
 							<span class="item-list__step-val">{{ item.quantity ?? 1 }}</span>
 							<button class="item-list__step-btn" @click="changeQty(item, +1)">+</button>
 						</div>
-						<span class="item-list__title">{{ item.title }}</span>
+						<span
+							v-if="editingItemId !== item.id"
+							class="item-list__title"
+							:title="t('lists', 'Double-click to rename')"
+							@dblclick="startEdit(item)">{{ item.title }}</span>
+						<input
+							v-else
+							class="item-list__title-input"
+							:value="editDraft"
+							@input="editDraft = $event.target.value"
+							@blur="commitEdit(item)"
+							@keydown.enter.prevent="commitEdit(item)"
+							@keydown.escape.prevent="cancelEdit" />
+						<button
+							v-if="editingItemId !== item.id"
+							class="item-list__edit"
+							:title="t('lists', 'Rename')"
+							@click.stop="startEdit(item)">✎</button>
 						<!-- Category badge / picker -->
 						<div v-if="catStore.categories.length" class="item-list__cat-wrap">
 							<button
@@ -118,6 +144,7 @@
 									class="item-list__cat-option"
 									:class="{ 'item-list__cat-option--active': item.categoryId === cat.id }"
 									@click="assignCategory(item, cat.id)">
+									<span v-if="cat.icon" class="item-list__cat-option-icon">{{ cat.icon }}</span>
 									{{ cat.name }}
 								</button>
 							</div>
@@ -136,16 +163,31 @@
 					<li class="item-list__separator">
 						<span>{{ t('lists', 'Checked') }}</span>
 						<div class="item-list__separator-actions">
+							<button
+								class="item-list__bulk-btn"
+								:title="checkedSortTitle"
+								@click="store.toggleCheckedSort">
+								{{ checkedSortLabel }}
+							</button>
 							<button class="item-list__bulk-btn" @click="askUncheckAll">
 								{{ t('lists', 'Uncheck all') }}
 							</button>
-							<button class="item-list__clear-checked" @click="clearChecked">
+							<button class="item-list__clear-checked" @click="askClearChecked">
 								{{ t('lists', 'Clear all') }}
 							</button>
 						</div>
 					</li>
+					<!-- Search filter -->
+					<li class="item-list__checked-search">
+						<input
+							v-model="checkedSearch"
+							class="item-list__checked-search-input"
+							type="search"
+							:placeholder="t('lists', 'Search checked items…')" />
+					</li>
+					<!-- Items -->
 					<li
-						v-for="item in store.checked"
+						v-for="item in filteredChecked"
 						:key="item.id"
 						:data-item-id="item.id"
 						class="item-list__item item-list__item--checked">
@@ -154,13 +196,38 @@
 							:checked="item.checked"
 							class="item-list__checkbox"
 							@change="store.toggle(list.id, item.id)" />
-						<span class="item-list__title item-list__title--checked">{{ item.title }}</span>
+						<span
+							v-if="editingItemId !== item.id"
+							class="item-list__title item-list__title--checked"
+							:title="t('lists', 'Double-click to rename')"
+							@dblclick="startEdit(item)">{{ item.title }}</span>
+						<input
+							v-else
+							class="item-list__title-input item-list__title-input--checked"
+							:value="editDraft"
+							@input="editDraft = $event.target.value"
+							@blur="commitEdit(item)"
+							@keydown.enter.prevent="commitEdit(item)"
+							@keydown.escape.prevent="cancelEdit" />
+						<span
+							v-if="catStore.categories.length && item.categoryId && editingItemId !== item.id"
+							class="item-list__cat-chip">
+							{{ categoryLabel(item.categoryId) }}
+						</span>
+						<button
+							v-if="editingItemId !== item.id"
+							class="item-list__edit"
+							:title="t('lists', 'Rename')"
+							@click.stop="startEdit(item)">✎</button>
 						<button
 							class="item-list__delete"
 							:title="t('lists', 'Delete')"
 							@click="store.destroy(list.id, item.id)">
 							✕
 						</button>
+					</li>
+					<li v-if="filteredChecked.length === 0 && checkedSearch.trim()" class="item-list__no-results">
+						{{ t('lists', 'No items match your search') }}
 					</li>
 				</template>
 			</ul>
@@ -175,11 +242,12 @@ import { useItemsStore } from '../store/items.js'
 import { useCategoriesStore } from '../store/categories.js'
 import ItemInput from './ItemInput.vue'
 import ConfirmModal from './ConfirmModal.vue'
+import ManageCategoriesModal from './ManageCategoriesModal.vue'
 
 export default {
 	name: 'ItemList',
 
-	components: { ItemInput, ConfirmModal },
+	components: { ItemInput, ConfirmModal, ManageCategoriesModal },
 
 	props: {
 		list: { type: Object, required: true },
@@ -196,14 +264,54 @@ export default {
 	data() {
 		return {
 			addCategoryId: null,
-			editingCatId: null,
-			editingCatName: '',
 			catPickerItemId: null,
+			manageOpen: false,
 			confirm: { show: false, message: '', label: 'OK', resolve: null },
+			editingItemId: null,
+			editDraft: '',
+			checkedSearch: '',
+			// Pull-to-refresh state
+			pull: { startY: 0, tracking: false },
+			pullHeight: 0,
+			pullThreshold: 70,
+			pullMax: 110,
+			pullRefreshing: false,
 		}
 	},
 
 	computed: {
+		checkedSortLabel() {
+			return { alpha: t('lists', 'A-Z'), recent: t('lists', 'Recent'), category: t('lists', 'Category') }[this.store.checkedSortMode] ?? 'A-Z'
+		},
+
+		checkedSortTitle() {
+			return {
+				alpha: t('lists', 'Sort by check date'),
+				recent: t('lists', 'Sort by category'),
+				category: t('lists', 'Sort A-Z'),
+			}[this.store.checkedSortMode] ?? ''
+		},
+
+		filteredChecked() {
+			let items = this.store.checked
+
+			// Re-sort by category name when mode is 'category' (store only has categoryId, not name)
+			if (this.store.checkedSortMode === 'category') {
+				const catMap = new Map(this.catStore.categories.map((c) => [c.id, c]))
+				items = [...items].sort((a, b) => {
+					const catA = catMap.get(a.categoryId)?.name ?? '￿'
+					const catB = catMap.get(b.categoryId)?.name ?? '￿'
+					const catCmp = catA.localeCompare(catB, undefined, { sensitivity: 'base' })
+					if (catCmp !== 0) return catCmp
+					return (a.title ?? '').localeCompare(b.title ?? '', undefined, { sensitivity: 'base', numeric: true })
+				})
+			}
+
+			const q = this.checkedSearch.trim().toLowerCase()
+			if (!q) return items
+			return items.filter((i) => i.title?.toLowerCase().includes(q))
+		},
+
 		groupedUnchecked() {
 			const items = this.store.unchecked
 			if (!this.catStore.categories.length) {
@@ -217,14 +325,14 @@ export default {
 			for (const cat of this.catStore.categories) {
 				const catItems = items.filter((i) => i.categoryId === cat.id)
 				if (catItems.length) {
-					groups.push({ categoryId: cat.id, categoryName: cat.name, items: catItems })
+					groups.push({ categoryId: cat.id, categoryName: cat.name, categoryIcon: cat.icon || '', items: catItems })
 				}
 			}
 
 			// Uncategorised at the end
 			const uncategorised = items.filter((i) => !i.categoryId || !catMap.has(i.categoryId))
 			if (uncategorised.length) {
-				groups.push({ categoryId: null, categoryName: t('lists', 'Other'), items: uncategorised })
+				groups.push({ categoryId: null, categoryName: t('lists', 'Other'), categoryIcon: '', items: uncategorised })
 			}
 
 			return groups
@@ -239,6 +347,8 @@ export default {
 			this.catStore.fetchAll(id)
 			this.addCategoryId = null
 			this.catPickerItemId = null
+			this.checkedSearch = ''
+			this.editingItemId = null
 		},
 	},
 
@@ -259,6 +369,12 @@ export default {
 			return cat ? cat.name : t('lists', 'Category…')
 		},
 
+		// Returns the icon (if set) or the name — used for the compact chip on checked items
+		categoryLabel(categoryId) {
+			const cat = this.catStore.categories.find((c) => c.id === categoryId)
+			return cat ? (cat.icon || cat.name) : ''
+		},
+
 		toggleAddCategory(catId) {
 			this.addCategoryId = this.addCategoryId === catId ? null : catId
 		},
@@ -269,40 +385,6 @@ export default {
 				const cat = await this.catStore.create(this.list.id, name.trim())
 				if (cat) this.addCategoryId = cat.id
 			}
-		},
-
-		startRename(cat) {
-			this.editingCatId = cat.id
-			this.editingCatName = cat.name
-			nextTick(() => {
-				const ref = this.$refs[`catInput_${cat.id}`]
-				const el = Array.isArray(ref) ? ref[0] : ref
-				el?.focus()
-				el?.select()
-			})
-		},
-
-		async confirmRename(cat) {
-			const name = this.editingCatName.trim()
-			if (name && name !== cat.name) {
-				await this.catStore.rename(this.list.id, cat.id, name)
-			}
-			this.cancelRename()
-		},
-
-		cancelRename() {
-			this.editingCatId = null
-			this.editingCatName = ''
-		},
-
-		async onDeleteCategory(cat) {
-			if (!window.confirm(t('lists', 'Delete category "{name}"? Items will be unassigned.', { name: cat.name }))) return
-			if (this.addCategoryId === cat.id) this.addCategoryId = null
-			await this.catStore.destroy(this.list.id, cat.id)
-			// Reflect unassignment in local item state without a full refetch
-			this.store.items.forEach((item) => {
-				if (item.categoryId === cat.id) item.categoryId = null
-			})
 		},
 
 		openCatPicker(item) {
@@ -318,6 +400,67 @@ export default {
 		async assignCategory(item, categoryId) {
 			this.catPickerItemId = null
 			await this.store.setCategory(this.list.id, item.id, categoryId)
+		},
+
+		onPullStart(e) {
+			if (this.pullRefreshing) return
+			if (e.touches.length !== 1) return
+			// Only arm when the scroll container is at top.
+			const scroller = this.getScroller()
+			const atTop = scroller ? scroller.scrollTop <= 0 : (window.scrollY <= 0)
+			if (!atTop) return
+			// Skip if touch starts inside an interactive control
+			if (e.target?.closest?.('input, textarea, button, [contenteditable="true"]')) return
+			this.pull = { startY: e.touches[0].clientY, tracking: true }
+			this.pullHeight = 0
+		},
+
+		onPullMove(e) {
+			if (!this.pull.tracking) return
+			const dy = e.touches[0].clientY - this.pull.startY
+			if (dy <= 0) {
+				this.pullHeight = 0
+				return
+			}
+			// Block default scroll/refresh once we're clearly pulling down
+			if (dy > 10 && e.cancelable) e.preventDefault()
+			// Resistance: pull diminishes past threshold
+			const resisted = dy <= this.pullThreshold
+				? dy
+				: this.pullThreshold + (dy - this.pullThreshold) * 0.4
+			this.pullHeight = Math.min(resisted, this.pullMax)
+		},
+
+		async onPullEnd() {
+			if (!this.pull.tracking) return
+			this.pull.tracking = false
+			if (this.pullHeight >= this.pullThreshold && !this.pullRefreshing) {
+				this.pullRefreshing = true
+				try {
+					await Promise.all([
+						this.store.refresh(this.list.id),
+						this.catStore.refresh(this.list.id),
+					])
+				} finally {
+					this.pullRefreshing = false
+					this.pullHeight = 0
+				}
+			} else {
+				this.pullHeight = 0
+			}
+		},
+
+		getScroller() {
+			// Find nearest ancestor that actually scrolls; falls back to window.
+			let el = this.$el?.parentElement
+			while (el && el !== document.body) {
+				const style = getComputedStyle(el)
+				if (/(auto|scroll|overlay)/.test(style.overflowY) && el.scrollHeight > el.clientHeight) {
+					return el
+				}
+				el = el.parentElement
+			}
+			return null
 		},
 
 		async onAdd({ title, quantity }) {
@@ -341,6 +484,34 @@ export default {
 			}
 		},
 
+		startEdit(item) {
+			this.catPickerItemId = null
+			this.editingItemId = item.id
+			this.editDraft = item.title
+			nextTick(() => {
+				const input = this.$el.querySelector('.item-list__title-input')
+				if (input) {
+					input.focus()
+					input.select()
+				}
+			})
+		},
+
+		async commitEdit(item) {
+			if (this.editingItemId !== item.id) return
+			const newTitle = this.editDraft.trim()
+			this.editingItemId = null
+			this.editDraft = ''
+			if (newTitle && newTitle !== item.title) {
+				await this.store.rename(this.list.id, item.id, newTitle)
+			}
+		},
+
+		cancelEdit() {
+			this.editingItemId = null
+			this.editDraft = ''
+		},
+
 		async changeQty(item, delta) {
 			const current = item.quantity ?? 1
 			const qty = Math.max(1, current + delta)
@@ -350,6 +521,16 @@ export default {
 		async clearChecked() {
 			const checked = [...this.store.checked]
 			await Promise.all(checked.map((item) => this.store.destroy(this.list.id, item.id)))
+		},
+
+		async askClearChecked() {
+			const n = this.store.checked.length
+			const ok = await this.ask(
+				t('lists', 'Delete all {n} checked items? This cannot be undone.', { n }),
+				t('lists', 'Clear all'),
+			)
+			if (!ok) return
+			await this.clearChecked()
 		},
 
 		// ── Bulk actions ──────────────────────────────────────────────────────
@@ -398,68 +579,90 @@ export default {
 	padding: 24px;
 }
 
+/* ── Pull to refresh ── */
+.item-list__pull {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	overflow: hidden;
+	color: var(--color-text-lighter);
+	font-size: 0.85em;
+}
+.item-list__pull--animate {
+	transition: height 0.2s ease-out;
+}
+.item-list__pull--refreshing {
+	color: var(--color-primary);
+}
+.item-list__pull-label {
+	white-space: nowrap;
+}
+
 /* ── Category bar ── */
 .cat-bar {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 6px;
-	margin: 12px 0;
+	gap: 4px;
+	margin: 8px 0;
 	align-items: center;
 }
 .cat-bar__chip {
 	display: inline-flex;
 	align-items: center;
-	gap: 4px;
-	padding: 4px 10px 4px 12px;
+	justify-content: center;
+	padding: 2px 10px;
 	border: 1px solid var(--color-border);
-	border-radius: 20px;
+	border-radius: 14px;
 	background: var(--color-background-dark);
 	color: var(--color-main-text);
 	font-size: 0.85em;
 	cursor: pointer;
 	transition: background 0.15s;
+	min-height: 26px;
+}
+.cat-bar__chip--icon {
+	padding: 0;
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
+	font-size: 1.05em;
+}
+.cat-bar__chip:hover {
+	background: var(--color-background-hover);
 }
 .cat-bar__chip--active {
 	background: var(--color-primary);
 	color: var(--color-primary-text);
 	border-color: var(--color-primary);
 }
-.cat-bar__chip-name {
-	cursor: text;
+.cat-bar__chip--active:hover {
+	background: var(--color-primary);
+	filter: brightness(1.05);
 }
-.cat-bar__chip-input {
-	width: 90px;
-	border: none;
-	background: transparent;
-	color: inherit;
-	font-size: 1em;
-	outline: none;
-	padding: 0;
-}
-.cat-bar__chip-del {
-	background: none;
-	border: none;
-	cursor: pointer;
-	color: inherit;
-	opacity: 0.6;
-	font-size: 0.8em;
-	padding: 0 2px;
+.cat-bar__chip-icon {
 	line-height: 1;
 }
-.cat-bar__chip-del:hover {
-	opacity: 1;
+.cat-bar__chip-name {
+	line-height: 1;
 }
+.cat-bar__manage,
 .cat-bar__add {
-	padding: 4px 12px;
+	width: 32px;
+	height: 32px;
 	border: 1px dashed var(--color-border);
-	border-radius: 20px;
+	border-radius: 50%;
 	background: none;
 	color: var(--color-text-lighter);
-	font-size: 0.85em;
+	font-size: 0.95em;
 	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
 }
+.cat-bar__manage:hover,
 .cat-bar__add:hover {
 	background: var(--color-background-hover);
+	color: var(--color-main-text);
 }
 
 /* ── Item list ── */
@@ -504,12 +707,55 @@ export default {
 	flex: 1;
 	font-size: 1.05em;
 	font-weight: 600;
+	cursor: text;
 }
 .item-list__title--checked {
 	text-decoration: line-through;
 	color: var(--color-text-lighter);
 	font-weight: 400;
 	font-size: 1em;
+}
+.item-list__title-input {
+	flex: 1;
+	font-size: 1.05em;
+	font-weight: 600;
+	border: none;
+	border-bottom: 2px solid var(--color-primary);
+	border-radius: 0;
+	background: transparent;
+	color: var(--color-main-text);
+	padding: 0 2px;
+	outline: none;
+	min-width: 0;
+	line-height: inherit;
+}
+.item-list__title-input--checked {
+	font-size: 1em;
+	font-weight: 400;
+	color: var(--color-text-lighter);
+}
+.item-list__edit {
+	background: none;
+	border: none;
+	cursor: pointer;
+	opacity: 0;
+	color: var(--color-text-lighter);
+	padding: 4px;
+	font-size: 0.9em;
+	flex-shrink: 0;
+	transition: opacity 0.12s, color 0.12s;
+}
+.item-list__item:hover .item-list__edit {
+	opacity: 1;
+}
+.item-list__edit:hover {
+	color: var(--color-primary);
+}
+/* Always slightly visible on touch devices (no hover) */
+@media (hover: none) {
+	.item-list__edit {
+		opacity: 0.35;
+	}
 }
 
 /* ── Category badge / picker on item ── */
@@ -674,5 +920,54 @@ export default {
 .item-list__loading {
 	padding: 16px 0;
 	color: var(--color-text-lighter);
+}
+
+/* ── Checked items — search bar ── */
+.item-list__checked-search {
+	list-style: none;
+	padding: 6px 4px 2px;
+}
+.item-list__checked-search-input {
+	width: 100%;
+	box-sizing: border-box;
+	padding: 6px 10px;
+	border: 1px solid var(--color-border);
+	border-radius: var(--border-radius-pill, 20px);
+	background: var(--color-background-dark);
+	color: var(--color-main-text);
+	font-size: 0.9em;
+	outline: none;
+	transition: border-color 0.15s;
+}
+.item-list__checked-search-input:focus {
+	border-color: var(--color-primary);
+	background: var(--color-main-background);
+}
+.item-list__checked-search-input::placeholder {
+	color: var(--color-text-maxcontrast);
+}
+
+/* ── Category chip on checked items ── */
+.item-list__cat-chip {
+	flex-shrink: 0;
+	font-size: 0.75em;
+	color: var(--color-text-lighter);
+	background: var(--color-background-dark);
+	border: 1px solid var(--color-border);
+	border-radius: 10px;
+	padding: 1px 7px;
+	white-space: nowrap;
+	max-width: 80px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* ── No search results ── */
+.item-list__no-results {
+	list-style: none;
+	padding: 10px 4px;
+	font-size: 0.9em;
+	color: var(--color-text-lighter);
+	font-style: italic;
 }
 </style>

@@ -11,6 +11,8 @@ use OCP\AppFramework\Db\Entity;
  * @method void setListId(int $listId)
  * @method string getName()
  * @method void setName(string $name)
+ * @method ?string getIcon()
+ * @method void setIcon(?string $icon)
  * @method int getPosition()
  * @method void setPosition(int $position)
  * @method int getCreatedAt()
@@ -19,6 +21,7 @@ use OCP\AppFramework\Db\Entity;
 class CategoryEntity extends Entity {
     protected int $listId = 0;
     protected string $name = '';
+    protected ?string $icon = null;
     protected int $position = 0;
     protected int $createdAt = 0;
 
@@ -34,6 +37,7 @@ class CategoryEntity extends Entity {
             'id'        => $this->getId(),
             'listId'    => $this->getListId(),
             'name'      => $this->getName(),
+            'icon'      => $this->getIcon() ?? '',
             'position'  => $this->getPosition(),
             'createdAt' => $this->getCreatedAt(),
         ];

@@ -34,6 +34,9 @@
 					<button class="lists-nav__menu-item" @click.stop="openShare(list)">
 						{{ t('lists', 'Share') }}
 					</button>
+					<button class="lists-nav__menu-item" @click.stop="openExport(list)">
+						{{ t('lists', 'Export') }}
+					</button>
 					<button class="lists-nav__menu-item lists-nav__menu-item--danger" @click.stop="onDelete(list)">
 						{{ t('lists', 'Delete') }}
 					</button>
@@ -71,22 +74,25 @@
 		:current-user="currentUser"
 		@save="onReorder"
 		@close="reorderOpen = false" />
+	<ExportModal v-if="exportTarget" :list="exportTarget" @close="exportTarget = null" />
 </template>
 
 <script>
 import { NcAppNavigation } from '@nextcloud/vue'
 import { translate as t } from '@nextcloud/l10n'
 import { getCurrentUser } from '@nextcloud/auth'
+import { emit, subscribe, unsubscribe } from '@nextcloud/event-bus'
 import { useListsStore } from './store/lists.js'
 import ItemList from './components/ItemList.vue'
 import ShareModal from './components/ShareModal.vue'
 import ListFormModal from './components/ListFormModal.vue'
 import ReorderModal from './components/ReorderModal.vue'
+import ExportModal from './components/ExportModal.vue'
 
 export default {
 	name: 'App',
 
-	components: { NcAppNavigation, ItemList, ShareModal, ListFormModal, ReorderModal },
+	components: { NcAppNavigation, ItemList, ShareModal, ListFormModal, ReorderModal, ExportModal },
 
 	setup() {
 		const store = useListsStore()
@@ -98,22 +104,81 @@ export default {
 		return {
 			openMenuId: null,
 			shareTarget: null,
+			exportTarget: null,
 			formTarget: undefined, // undefined = hidden, null = create mode, object = edit mode
 			reorderOpen: false,
 			currentUser: getCurrentUser()?.uid ?? '',
+			// Swipe-gesture state
+			navOpen: false,
+			swipe: { startX: 0, startY: 0, startTime: 0, tracking: false },
 		}
 	},
 
 	mounted() {
 		document.addEventListener('click', this.closeMenu)
+		// Track NcAppNavigation open state
+		this.onNavToggled = ({ open }) => { this.navOpen = !!open }
+		subscribe('navigation-toggled', this.onNavToggled)
+		// Touch swipe listeners (Android open/close menu)
+		document.addEventListener('touchstart', this.onTouchStart, { passive: true })
+		document.addEventListener('touchend', this.onTouchEnd, { passive: true })
 	},
 
 	beforeUnmount() {
 		document.removeEventListener('click', this.closeMenu)
+		unsubscribe('navigation-toggled', this.onNavToggled)
+		document.removeEventListener('touchstart', this.onTouchStart)
+		document.removeEventListener('touchend', this.onTouchEnd)
 	},
 
 	methods: {
 		t,
+
+		onTouchStart(e) {
+			if (e.touches.length !== 1) {
+				this.swipe.tracking = false
+				return
+			}
+			// Skip when touching inside an input / textarea / scrollable picker
+			const target = e.target
+			if (target?.closest?.('input, textarea, [contenteditable="true"]')) {
+				this.swipe.tracking = false
+				return
+			}
+			const touch = e.touches[0]
+			this.swipe = {
+				startX: touch.clientX,
+				startY: touch.clientY,
+				startTime: Date.now(),
+				tracking: true,
+			}
+		},
+
+		onTouchEnd(e) {
+			if (!this.swipe.tracking) return
+			this.swipe.tracking = false
+			const touch = e.changedTouches[0]
+			if (!touch) return
+			const dx = touch.clientX - this.swipe.startX
+			const dy = touch.clientY - this.swipe.startY
+			const dt = Date.now() - this.swipe.startTime
+
+			// Filter: must be primarily horizontal, fast enough, long enough
+			if (Math.abs(dx) < 60) return
+			if (Math.abs(dx) <= Math.abs(dy) * 1.5) return
+			if (dt > 600) return
+
+			if (dx > 0) {
+				// Swipe right — open menu (must start near the left edge to avoid conflicts)
+				if (this.navOpen) return
+				if (this.swipe.startX > 30) return
+				emit('toggle-navigation', { open: true })
+			} else {
+				// Swipe left — close menu (any start position)
+				if (!this.navOpen) return
+				emit('toggle-navigation', { open: false })
+			}
+		},
 
 		closeMenu() {
 			this.openMenuId = null
@@ -126,6 +191,11 @@ export default {
 		openShare(list) {
 			this.openMenuId = null
 			this.shareTarget = list
+		},
+
+		openExport(list) {
+			this.openMenuId = null
+			this.exportTarget = list
 		},
 
 		openEdit(list) {

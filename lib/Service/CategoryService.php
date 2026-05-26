@@ -24,24 +24,30 @@ class CategoryService {
     }
 
     /** @throws NotFoundException|ForbiddenException */
-    public function create(int $listId, string $uid, string $name, int $position = 0): CategoryEntity {
+    public function create(int $listId, string $uid, string $name, string $icon = '', int $position = 0): CategoryEntity {
         if (!$this->permissions->canWrite($listId, $uid)) {
             throw new ForbiddenException();
         }
         $entity = new CategoryEntity();
         $entity->setListId($listId);
         $entity->setName($name);
+        $entity->setIcon($icon);
         $entity->setPosition($position);
         return $this->mapper->insert($entity);
     }
 
     /** @throws NotFoundException|ForbiddenException */
-    public function update(int $id, int $listId, string $uid, string $name): CategoryEntity {
+    public function update(int $id, int $listId, string $uid, ?string $name = null, ?string $icon = null): CategoryEntity {
         if (!$this->permissions->canWrite($listId, $uid)) {
             throw new ForbiddenException();
         }
         $entity = $this->mapper->find($id, $listId);
-        $entity->setName($name);
+        if ($name !== null) {
+            $entity->setName($name);
+        }
+        if ($icon !== null) {
+            $entity->setIcon($icon);
+        }
         return $this->mapper->update($entity);
     }
 

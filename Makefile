@@ -71,6 +71,7 @@ package:
 	  --exclude='krankerl.toml' \
 	  --exclude='.nextcloudignore' \
 	  --exclude='.claude' \
+  --exclude='local' \
 	  --exclude='js/*.map' \
 	  ./ $(TMPDIR)/lists/
 	tar -czf build/artifacts/lists.tar.gz -C $(TMPDIR) lists

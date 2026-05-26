@@ -1,64 +1,69 @@
 <template>
-	<div class="modal-overlay" @click.self="$emit('close')">
-		<div class="modal-card" role="dialog" :aria-label="t('lists', 'Share list')">
-			<div class="modal-card__header">
-				<h2 class="modal-card__title">{{ t('lists', 'Share') }} — {{ list.name }}</h2>
-				<button class="modal-card__close" :aria-label="t('lists', 'Close')" @click="$emit('close')">✕</button>
-			</div>
-
-			<div class="modal-card__body">
-				<!-- Search row -->
-				<div class="share-add">
-					<UserGroupSearch ref="search" @select="onSearchSelect" />
-					<div v-if="pending" class="share-add__pending">
-						<span class="share-list__badge">
-							{{ pending.type === 0 ? t('lists', 'User') : t('lists', 'Group') }}
-						</span>
-						<span class="share-add__name">{{ pending.displayName }}</span>
-						<select v-model="pendingPerms" class="share-form__select share-form__select--sm">
-							<option :value="1">{{ t('lists', 'Read') }}</option>
-							<option :value="3">{{ t('lists', 'Read & write') }}</option>
-						</select>
-						<button class="share-add__confirm" @click="confirmAdd">{{ t('lists', 'Share') }}</button>
-						<button class="share-add__cancel" @click="pending = null">✕</button>
-					</div>
+	<NcDialog
+		:name="t('lists', 'Share') + ' — ' + list.name"
+		size="small"
+		close-on-click-outside
+		@closing="$emit('close')">
+		<div class="share-modal__body">
+			<!-- Search row -->
+			<div class="share-add">
+				<UserGroupSearch ref="search" @select="onSearchSelect" />
+				<div v-if="pending" class="share-add__pending">
+					<span class="share-list__badge">
+						{{ pending.type === 0 ? t('lists', 'User') : t('lists', 'Group') }}
+					</span>
+					<span class="share-add__name">{{ pending.displayName }}</span>
+					<select v-model="pendingPerms" class="share-form__select share-form__select--sm">
+						<option :value="1">{{ t('lists', 'Read') }}</option>
+						<option :value="3">{{ t('lists', 'Read & write') }}</option>
+					</select>
+					<button class="share-add__confirm" @click="confirmAdd">{{ t('lists', 'Share') }}</button>
+					<button class="share-add__cancel" @click="pending = null">✕</button>
 				</div>
-
-				<p v-if="error" class="share-form__error">{{ error }}</p>
-
-				<!-- Existing shares -->
-				<ul v-if="shares.length" class="share-list">
-					<li v-for="share in shares" :key="share.id" class="share-list__item">
-						<span class="share-list__badge">
-							{{ share.shareType === 0 ? t('lists', 'User') : t('lists', 'Group') }}
-						</span>
-						<span class="share-list__who">{{ share.shareWith }}</span>
-						<select
-							:value="share.permissions"
-							class="share-form__select share-form__select--sm"
-							@change="onUpdatePerms(share, +$event.target.value)">
-							<option :value="1">{{ t('lists', 'Read') }}</option>
-							<option :value="3">{{ t('lists', 'Read & write') }}</option>
-						</select>
-						<button class="share-list__remove" :title="t('lists', 'Remove')" @click="onRemove(share)">✕</button>
-					</li>
-				</ul>
-				<p v-else-if="!loading" class="share-form__empty">{{ t('lists', 'Not shared yet.') }}</p>
 			</div>
+
+			<p v-if="error" class="share-form__error">{{ error }}</p>
+
+			<!-- Existing shares -->
+			<ul v-if="shares.length" class="share-list">
+				<li v-for="share in shares" :key="share.id" class="share-list__item">
+					<span class="share-list__badge">
+						{{ share.shareType === 0 ? t('lists', 'User') : t('lists', 'Group') }}
+					</span>
+					<span class="share-list__who">{{ share.shareWith }}</span>
+					<select
+						:value="share.permissions"
+						class="share-form__select share-form__select--sm"
+						@change="onUpdatePerms(share, +$event.target.value)">
+						<option :value="1">{{ t('lists', 'Read') }}</option>
+						<option :value="3">{{ t('lists', 'Read & write') }}</option>
+					</select>
+					<button class="share-list__remove" :title="t('lists', 'Remove')" @click="onRemove(share)">✕</button>
+				</li>
+			</ul>
+			<p v-else-if="!loading" class="share-form__empty">{{ t('lists', 'Not shared yet.') }}</p>
 		</div>
-	</div>
+
+		<template #actions>
+			<NcButton type="primary" @click="$emit('close')">
+				{{ t('lists', 'Done') }}
+			</NcButton>
+		</template>
+	</NcDialog>
 </template>
 
 <script>
 import { translate as t } from '@nextcloud/l10n'
 import { showError, showSuccess } from '@nextcloud/dialogs'
+import NcDialog from '@nextcloud/vue/components/NcDialog'
+import NcButton from '@nextcloud/vue/components/NcButton'
 import { sharesApi } from '../services/api.js'
 import UserGroupSearch from './UserGroupSearch.vue'
 
 export default {
 	name: 'ShareModal',
 
-	components: { UserGroupSearch },
+	components: { NcDialog, NcButton, UserGroupSearch },
 
 	props: {
 		list: { type: Object, required: true },
@@ -78,19 +83,10 @@ export default {
 
 	mounted() {
 		this.fetchShares()
-		document.addEventListener('keydown', this.onKeydown)
-	},
-
-	beforeUnmount() {
-		document.removeEventListener('keydown', this.onKeydown)
 	},
 
 	methods: {
 		t,
-
-		onKeydown(e) {
-			if (e.key === 'Escape') this.$emit('close')
-		},
 
 		async fetchShares() {
 			this.loading = true
@@ -156,52 +152,10 @@ export default {
 </script>
 
 <style scoped>
-.modal-overlay {
-	position: fixed;
-	inset: 0;
-	background: rgba(0, 0, 0, 0.5);
-	z-index: 9999;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-.modal-card {
-	background: var(--color-main-background);
-	border-radius: var(--border-radius-large);
-	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-	width: 500px;
-	max-width: calc(100vw - 32px);
-	max-height: calc(100vh - 64px);
+.share-modal__body {
 	display: flex;
 	flex-direction: column;
-}
-.modal-card__header {
-	display: flex;
-	align-items: center;
-	padding: 20px 20px 12px;
-	border-bottom: 1px solid var(--color-border-dark);
-}
-.modal-card__title {
-	flex: 1;
-	font-size: 1.1em;
-	font-weight: bold;
-	margin: 0;
-}
-.modal-card__close {
-	background: none;
-	border: none;
-	cursor: pointer;
-	font-size: 1em;
-	color: var(--color-text-lighter);
-	padding: 4px 8px;
-	border-radius: var(--border-radius);
-}
-.modal-card__close:hover {
-	background: var(--color-background-hover);
-}
-.modal-card__body {
-	padding: 16px 20px 20px;
-	overflow-y: auto;
+	min-height: 200px;
 }
 .share-add {
 	margin-bottom: 16px;
@@ -241,6 +195,7 @@ export default {
 	background: var(--color-main-background);
 	color: var(--color-main-text);
 	cursor: pointer;
+	font-size: 16px;
 }
 .share-form__select--sm {
 	font-size: 0.85em;

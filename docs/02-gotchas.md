@@ -39,6 +39,8 @@
 
 **4.14 — `BOOLEAN NOT NULL` interdit dans les migrations NC.** Nextcloud refuse les colonnes `BOOLEAN NOT NULL` (validation cross-DB). Utilise `Types::SMALLINT` avec `default => 0` / `1` à la place. Dans l'Entity, caste avec `$this->addType('checked', 'integer')` et expose via un getter `bool` : `return (bool) $this->checked`.
 
+**4.18 — `notnull => true` + default vide rejeté en `ALTER TABLE`.** Le validateur NC rejette `Types::STRING` avec `notnull => true` ET `default => ''` ou `default => null`. Erreur : `Column ... is NotNull, but has empty string or null as default`. Pour ajouter une colonne string nullable, utilise `notnull => false, default => null` côté schema, et `protected ?string $field = null` côté Entity, en normalisant dans `jsonSerialize()` (`'field' => $this->getField() ?? ''`).
+
 **4.13 — Permissions `custom_apps` au premier boot Docker.** Le bind mount `./:/var/www/html/custom_apps/lists` force Docker à créer `/var/www/html/custom_apps` appartenant à `root:root`. Nextcloud ne peut alors pas y écrire et boucle sur "Retrying install...". Fix après `docker compose up` :
 ```bash
 docker compose -f docker-compose.dev.yml exec nextcloud chown www-data:www-data /var/www/html/custom_apps
@@ -46,5 +48,9 @@ docker compose -f docker-compose.dev.yml exec nextcloud chown www-data:www-data 
 En NC33+, `maintenance:install` n'existe plus — l'entrypoint Docker installe NC automatiquement via les variables d'environnement. Ce fix (chown) est à rejouer uniquement après un `docker compose down -v`.
 
 **4.16 — OPcache en dev Docker.** PHP OPcache cache les fichiers compilés en mémoire. Quand tu modifies des fichiers PHP dans l'app, les routes ou les classes restent en cache jusqu'au prochain restart Apache/PHP-FPM. Si une route nouvellement déclarée retourne OCS 998 alors que tout semble correct, un `docker compose restart nextcloud` vide l'OPcache et suffit à résoudre le problème.
+
+**4.19 — `NcEmojiPicker` ne s'ouvre pas en @vue/compat MODE:2.** Le picker enveloppe son trigger via une chaîne de scoped-slots NcEmojiPicker → NcPopover → Dropdown (floating-vue) qui casse en compat mode : le click sur le slot trigger ne propage pas à floating-vue. Workaround : custom dialog avec input texte (l'utilisateur peut coller un emoji depuis le picker système — Win+`.`, Cmd+Ctrl+Espace, ou clavier emoji mobile) + grille de raccourcis (`IconPickerDialog.vue`). `emoji-mart-vue-fast` est dispo en transitive si on veut un vrai picker un jour, mais idem Vue 2.
+
+**4.17 — Modales : utiliser `NcDialog` + slot `#actions`, pas modale custom.** Une modale custom (`position: fixed` overlay inline dans le template) ne teleport pas vers `body`, donc elle reste dans le contexte de `#lists-root` (`display: contents`) et de `#content`. Sur Android Chrome, ça empêche le clavier soft de s'ouvrir en tapant un input. Utilise `NcDialog` (`container` = `body` par défaut), avec le slot `#actions` pour les boutons (la prop `:buttons` ne s'itère pas correctement en @vue/compat MODE:2 → la div `.dialog__actions` reste vide). Pour les inputs dans la modale : `font-size: 16px` minimum pour éviter le zoom auto Android/iOS qui perturbe l'ouverture du clavier. Pas de `focus()` programmatique au mount — le focus trap de `NcDialog` s'en charge, et sur Android un focus hors d'un user-gesture n'ouvre pas le clavier de toute façon.
 
 ---

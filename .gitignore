@@ -2,3 +2,7 @@ vendor/
 node_modules/
 build/
 js/*.map
+
+# host-specific, never commit
+local/
+.mcp.json

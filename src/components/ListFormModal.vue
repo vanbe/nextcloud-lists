@@ -1,57 +1,59 @@
 <template>
-	<div class="modal-overlay" @click.self="$emit('close')">
-		<div class="modal-card" role="dialog" :aria-label="title">
-			<div class="modal-card__header">
-				<h2 class="modal-card__title">{{ title }}</h2>
-				<button class="modal-card__close" :aria-label="t('lists', 'Close')" @click="$emit('close')">✕</button>
-			</div>
+	<NcDialog
+		:name="title"
+		size="small"
+		close-on-click-outside
+		@closing="$emit('close')">
+		<form class="lf__form" @submit.prevent="onSubmit">
+			<label class="lf__label" for="lf-name">{{ t('lists', 'Name') }}</label>
+			<input
+				id="lf-name"
+				v-model="form.name"
+				class="lf__input"
+				type="text"
+				maxlength="255"
+				autofocus
+				:placeholder="t('lists', 'List name')" />
 
-			<div class="modal-card__body">
-				<label class="lf__label" for="lf-name">{{ t('lists', 'Name') }}</label>
-				<input
-					id="lf-name"
-					ref="nameInput"
-					v-model="form.name"
-					class="lf__input"
-					type="text"
-					maxlength="255"
-					:placeholder="t('lists', 'List name')"
-					@keydown.enter.prevent="submit"
-					@keydown.esc.prevent="$emit('close')" />
+			<label class="lf__label" for="lf-desc">{{ t('lists', 'Description') }}</label>
+			<textarea
+				id="lf-desc"
+				v-model="form.description"
+				class="lf__textarea"
+				rows="3"
+				:placeholder="t('lists', 'Optional description…')"
+				maxlength="1000" />
 
-				<label class="lf__label" for="lf-desc">{{ t('lists', 'Description') }}</label>
-				<textarea
-					id="lf-desc"
-					v-model="form.description"
-					class="lf__textarea"
-					rows="3"
-					:placeholder="t('lists', 'Optional description…')"
-					maxlength="1000" />
+			<label class="lf__checkbox-row">
+				<input v-model="form.hasQuantities" type="checkbox" />
+				{{ t('lists', 'Items have quantities') }}
+			</label>
 
-				<label class="lf__checkbox-row">
-					<input v-model="form.hasQuantities" type="checkbox" />
-					{{ t('lists', 'Items have quantities') }}
-				</label>
+			<p v-if="error" class="lf__error">{{ error }}</p>
 
-				<p v-if="error" class="lf__error">{{ error }}</p>
-			</div>
+			<button type="submit" class="lf__hidden-submit" tabindex="-1" aria-hidden="true" />
+		</form>
 
-			<div class="modal-card__footer">
-				<button class="lf__btn lf__btn--cancel" @click="$emit('close')">{{ t('lists', 'Cancel') }}</button>
-				<button class="lf__btn lf__btn--primary" :disabled="!form.name.trim()" @click="submit">
-					{{ list ? t('lists', 'Save') : t('lists', 'Create') }}
-				</button>
-			</div>
-		</div>
-	</div>
+		<template #actions>
+			<NcButton type="secondary" @click="$emit('close')">
+				{{ t('lists', 'Cancel') }}
+			</NcButton>
+			<NcButton type="primary" :disabled="!form.name.trim()" @click="onSubmit">
+				{{ list ? t('lists', 'Save') : t('lists', 'Create') }}
+			</NcButton>
+		</template>
+	</NcDialog>
 </template>
 
 <script>
-import { nextTick } from 'vue'
 import { translate as t } from '@nextcloud/l10n'
+import NcDialog from '@nextcloud/vue/components/NcDialog'
+import NcButton from '@nextcloud/vue/components/NcButton'
 
 export default {
 	name: 'ListFormModal',
+
+	components: { NcDialog, NcButton },
 
 	props: {
 		list: { type: Object, default: null }, // null = create mode
@@ -76,23 +78,10 @@ export default {
 		},
 	},
 
-	mounted() {
-		document.addEventListener('keydown', this.onKeydown)
-		nextTick(() => this.$refs.nameInput?.focus())
-	},
-
-	beforeUnmount() {
-		document.removeEventListener('keydown', this.onKeydown)
-	},
-
 	methods: {
 		t,
 
-		onKeydown(e) {
-			if (e.key === 'Escape') this.$emit('close')
-		},
-
-		submit() {
+		onSubmit() {
 			const name = this.form.name.trim()
 			if (!name) return
 			this.$emit('submit', {
@@ -106,59 +95,11 @@ export default {
 </script>
 
 <style scoped>
-.modal-overlay {
-	position: fixed;
-	inset: 0;
-	background: rgba(0, 0, 0, 0.5);
-	z-index: 9999;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-.modal-card {
-	background: var(--color-main-background);
-	border-radius: var(--border-radius-large);
-	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-	width: 440px;
-	max-width: calc(100vw - 32px);
-	display: flex;
-	flex-direction: column;
-}
-.modal-card__header {
-	display: flex;
-	align-items: center;
-	padding: 20px 20px 12px;
-	border-bottom: 1px solid var(--color-border-dark);
-}
-.modal-card__title {
-	flex: 1;
-	font-size: 1.1em;
-	font-weight: bold;
-	margin: 0;
-}
-.modal-card__close {
-	background: none;
-	border: none;
-	cursor: pointer;
-	font-size: 1em;
-	color: var(--color-text-lighter);
-	padding: 4px 8px;
-	border-radius: var(--border-radius);
-}
-.modal-card__close:hover {
-	background: var(--color-background-hover);
-}
-.modal-card__body {
-	padding: 16px 20px;
+.lf__form {
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
-}
-.modal-card__footer {
-	padding: 12px 20px 20px;
-	display: flex;
-	justify-content: flex-end;
-	gap: 8px;
+	padding: 4px 0;
 }
 .lf__label {
 	font-size: 0.85em;
@@ -169,12 +110,12 @@ export default {
 .lf__input,
 .lf__textarea {
 	width: 100%;
-	padding: 8px 10px;
+	padding: 10px 12px;
 	border: 1px solid var(--color-border);
 	border-radius: var(--border-radius);
 	background: var(--color-main-background);
 	color: var(--color-main-text);
-	font-size: 0.95em;
+	font-size: 16px;
 	box-sizing: border-box;
 	resize: vertical;
 }
@@ -203,26 +144,10 @@ export default {
 	font-size: 0.9em;
 	margin: 8px 0 0;
 }
-.lf__btn {
-	padding: 8px 18px;
-	border: none;
-	border-radius: var(--border-radius);
-	cursor: pointer;
-	font-size: 0.95em;
-}
-.lf__btn--cancel {
-	background: var(--color-background-dark);
-	color: var(--color-main-text);
-}
-.lf__btn--cancel:hover {
-	background: var(--color-background-hover);
-}
-.lf__btn--primary {
-	background: var(--color-primary);
-	color: var(--color-primary-text);
-}
-.lf__btn--primary:disabled {
-	opacity: 0.5;
-	cursor: default;
+.lf__hidden-submit {
+	position: absolute;
+	left: -9999px;
+	width: 1px;
+	height: 1px;
 }
 </style>

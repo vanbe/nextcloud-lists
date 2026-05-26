@@ -4,17 +4,33 @@ import { translate as t } from '@nextcloud/l10n'
 import { itemsApi } from '../services/api.js'
 import { useListsStore } from './lists.js'
 
+const CHECKED_SORT_KEY = 'lists.checkedSortMode'
+const VALID_SORT_MODES = ['alpha', 'recent', 'category']
+
+function loadCheckedSortMode() {
+	const stored = localStorage.getItem(CHECKED_SORT_KEY)
+	return VALID_SORT_MODES.includes(stored) ? stored : 'recent'
+}
+
 export const useItemsStore = defineStore('items', {
 	state: () => ({
 		items: [],
 		listId: null,
 		loading: false,
 		error: null,
+		checkedSortMode: loadCheckedSortMode(), // 'alpha' | 'recent'
 	}),
 
 	getters: {
 		unchecked: (state) => state.items.filter((i) => !i.checked).sort((a, b) => a.position - b.position),
-		checked: (state) => state.items.filter((i) => i.checked).sort((a, b) => (b.checkedAt ?? 0) - (a.checkedAt ?? 0)),
+		checked: (state) => {
+			const checked = state.items.filter((i) => i.checked)
+			if (state.checkedSortMode === 'recent') {
+				return checked.sort((a, b) => (b.checkedAt ?? 0) - (a.checkedAt ?? 0))
+			}
+			// 'alpha' and 'category' both start with title sort; category is re-sorted in the component (needs catStore)
+			return checked.sort((a, b) => (a.title ?? '').localeCompare(b.title ?? '', undefined, { sensitivity: 'base', numeric: true }))
+		},
 	},
 
 	actions: {
@@ -34,11 +50,28 @@ export const useItemsStore = defineStore('items', {
 			}
 		},
 
+		async refresh(listId) {
+			this.error = null
+			try {
+				this.items = await itemsApi.getAll(listId)
+				this.listId = listId
+			} catch (e) {
+				this.error = e.message
+				showError(t('lists', 'Could not refresh items'))
+			}
+		},
+
 		reset() {
 			this.items = []
 			this.listId = null
 			this.loading = false
 			this.error = null
+		},
+
+		toggleCheckedSort() {
+			const cycle = { alpha: 'recent', recent: 'category', category: 'alpha' }
+			this.checkedSortMode = cycle[this.checkedSortMode] ?? 'alpha'
+			localStorage.setItem(CHECKED_SORT_KEY, this.checkedSortMode)
 		},
 
 		async create(listId, title, categoryId = null, quantity = null) {
@@ -59,6 +92,16 @@ export const useItemsStore = defineStore('items', {
 				if (idx !== -1) this.items[idx] = item
 			} catch {
 				showError(t('lists', 'Could not update item'))
+			}
+		},
+
+		async rename(listId, id, title) {
+			try {
+				const item = await itemsApi.update(listId, id, { title })
+				const idx = this.items.findIndex((i) => i.id === id)
+				if (idx !== -1) this.items[idx] = item
+			} catch {
+				showError(t('lists', 'Could not rename item'))
 			}
 		},
 

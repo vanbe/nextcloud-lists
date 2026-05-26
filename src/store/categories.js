@@ -21,14 +21,23 @@ export const useCategoriesStore = defineStore('categories', {
 			}
 		},
 
+		async refresh(listId) {
+			try {
+				this.categories = await categoriesApi.getAll(listId)
+				this.listId = listId
+			} catch {
+				showError(t('lists', 'Could not refresh categories'))
+			}
+		},
+
 		reset() {
 			this.categories = []
 			this.listId = null
 		},
 
-		async create(listId, name) {
+		async create(listId, name, icon = '') {
 			try {
-				const cat = await categoriesApi.create(listId, name)
+				const cat = await categoriesApi.create(listId, name, icon)
 				this.categories.push(cat)
 				showSuccess(t('lists', 'Category created'))
 				return cat
@@ -38,13 +47,13 @@ export const useCategoriesStore = defineStore('categories', {
 			}
 		},
 
-		async rename(listId, id, name) {
+		async update(listId, id, fields) {
 			try {
-				const updated = await categoriesApi.update(listId, id, name)
+				const updated = await categoriesApi.update(listId, id, fields)
 				const idx = this.categories.findIndex((c) => c.id === id)
 				if (idx !== -1) this.categories[idx] = updated
 			} catch {
-				showError(t('lists', 'Could not rename category'))
+				showError(t('lists', 'Could not update category'))
 			}
 		},
 

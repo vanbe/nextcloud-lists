@@ -36,15 +36,18 @@ class CategoryController extends OCSController {
     }
 
     #[NoAdminRequired]
-    public function create(int $listId, string $name, int $position = 0): DataResponse {
+    public function create(int $listId, string $name, string $icon = '', int $position = 0): DataResponse {
         if (trim($name) === '') {
             return new DataResponse(['message' => 'Name is required'], Http::STATUS_BAD_REQUEST);
         }
         if (mb_strlen($name) > 255) {
             return new DataResponse(['message' => 'Name too long (max 255)'], Http::STATUS_BAD_REQUEST);
         }
+        if (mb_strlen($icon) > 32) {
+            return new DataResponse(['message' => 'Icon too long (max 32)'], Http::STATUS_BAD_REQUEST);
+        }
         try {
-            $entity = $this->service->create($listId, $this->userId, trim($name), $position);
+            $entity = $this->service->create($listId, $this->userId, trim($name), $icon, $position);
             return new DataResponse($entity->jsonSerialize(), Http::STATUS_CREATED);
         } catch (NotFoundException) {
             return new DataResponse(['message' => 'List not found'], Http::STATUS_NOT_FOUND);
@@ -54,15 +57,21 @@ class CategoryController extends OCSController {
     }
 
     #[NoAdminRequired]
-    public function update(int $listId, int $id, string $name): DataResponse {
-        if (trim($name) === '') {
-            return new DataResponse(['message' => 'Name is required'], Http::STATUS_BAD_REQUEST);
+    public function update(int $listId, int $id, ?string $name = null, ?string $icon = null): DataResponse {
+        if ($name !== null) {
+            if (trim($name) === '') {
+                return new DataResponse(['message' => 'Name is required'], Http::STATUS_BAD_REQUEST);
+            }
+            if (mb_strlen($name) > 255) {
+                return new DataResponse(['message' => 'Name too long (max 255)'], Http::STATUS_BAD_REQUEST);
+            }
+            $name = trim($name);
         }
-        if (mb_strlen($name) > 255) {
-            return new DataResponse(['message' => 'Name too long (max 255)'], Http::STATUS_BAD_REQUEST);
+        if ($icon !== null && mb_strlen($icon) > 32) {
+            return new DataResponse(['message' => 'Icon too long (max 32)'], Http::STATUS_BAD_REQUEST);
         }
         try {
-            $entity = $this->service->update($id, $listId, $this->userId, trim($name));
+            $entity = $this->service->update($id, $listId, $this->userId, $name, $icon);
             return new DataResponse($entity->jsonSerialize());
         } catch (NotFoundException) {
             return new DataResponse(['message' => 'Not found'], Http::STATUS_NOT_FOUND);
