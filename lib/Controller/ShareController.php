@@ -44,6 +44,9 @@ class ShareController extends OCSController {
         if (trim($shareWith) === '') {
             return new DataResponse(['message' => 'shareWith is required'], Http::STATUS_BAD_REQUEST);
         }
+        if (!in_array($permissions, [ShareEntity::PERM_READ, ShareEntity::PERM_WRITE], true)) {
+            return new DataResponse(['message' => 'Invalid permissions'], Http::STATUS_BAD_REQUEST);
+        }
 
         try {
             $entity = $this->service->create($listId, $this->userId, $shareType, $shareWith, $permissions);
@@ -57,6 +60,9 @@ class ShareController extends OCSController {
 
     #[NoAdminRequired]
     public function update(int $listId, int $id, int $permissions): DataResponse {
+        if (!in_array($permissions, [ShareEntity::PERM_READ, ShareEntity::PERM_WRITE], true)) {
+            return new DataResponse(['message' => 'Invalid permissions'], Http::STATUS_BAD_REQUEST);
+        }
         try {
             $entity = $this->service->update($id, $listId, $this->userId, $permissions);
             return new DataResponse($entity->jsonSerialize());

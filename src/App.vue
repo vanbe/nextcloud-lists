@@ -57,6 +57,10 @@
 		</div>
 		<div v-else class="lists-view">
 			<h2>{{ store.selected.name }}</h2>
+			<p v-if="countsReady && (activeCount || checkedCount)" class="lists-view__counts">
+				<span class="lists-view__count-active">{{ activeCount }} {{ t('lists', 'active') }}</span>
+				<span v-if="checkedCount" class="lists-view__count-checked">· {{ checkedCount }} {{ t('lists', 'checked') }}</span>
+			</p>
 			<p v-if="store.selected.description" class="lists-view__description">{{ store.selected.description }}</p>
 			<ItemList :list="store.selected" />
 		</div>
@@ -83,6 +87,7 @@ import { translate as t } from '@nextcloud/l10n'
 import { getCurrentUser } from '@nextcloud/auth'
 import { emit, subscribe, unsubscribe } from '@nextcloud/event-bus'
 import { useListsStore } from './store/lists.js'
+import { useItemsStore } from './store/items.js'
 import ItemList from './components/ItemList.vue'
 import ShareModal from './components/ShareModal.vue'
 import ListFormModal from './components/ListFormModal.vue'
@@ -96,8 +101,22 @@ export default {
 
 	setup() {
 		const store = useListsStore()
+		const itemsStore = useItemsStore()
 		store.fetchAll()
-		return { store }
+		return { store, itemsStore }
+	},
+
+	computed: {
+		// Only show counts once the items store holds the currently-selected list
+		countsReady() {
+			return this.itemsStore.listId === this.store.selectedId && !this.itemsStore.loading
+		},
+		activeCount() {
+			return this.itemsStore.unchecked.length
+		},
+		checkedCount() {
+			return this.itemsStore.checked.length
+		},
 	},
 
 	data() {
@@ -122,6 +141,9 @@ export default {
 		// Touch swipe listeners (Android open/close menu)
 		document.addEventListener('touchstart', this.onTouchStart, { passive: true })
 		document.addEventListener('touchend', this.onTouchEnd, { passive: true })
+		// Keep selection in sync with the URL hash (pasted link, back/forward)
+		this.onHashChange = () => this.store.selectFromHash()
+		window.addEventListener('hashchange', this.onHashChange)
 	},
 
 	beforeUnmount() {
@@ -129,6 +151,7 @@ export default {
 		unsubscribe('navigation-toggled', this.onNavToggled)
 		document.removeEventListener('touchstart', this.onTouchStart)
 		document.removeEventListener('touchend', this.onTouchEnd)
+		window.removeEventListener('hashchange', this.onHashChange)
 	},
 
 	methods: {
@@ -231,6 +254,15 @@ export default {
 	},
 }
 </script>
+
+<!-- Non-scoped: NcAppNavigation ships no background, and NC core CSS targets the old
+     #app-navigation id (not the component's #app-navigation-vue) → menu is transparent. -->
+<style>
+#app-navigation-vue,
+.app-navigation {
+	background: var(--color-main-background);
+}
+</style>
 
 <style scoped>
 .lists-nav__new {
@@ -351,6 +383,18 @@ export default {
 	margin: 0 0 4px;
 	padding: 44px 24px 0 0;
 }
+.lists-view__counts {
+	margin: 0 0 8px;
+	padding: 0 24px 0 0;
+	font-size: 0.85em;
+	color: var(--color-text-lighter);
+	display: flex;
+	gap: 6px;
+}
+.lists-view__count-active {
+	font-weight: 600;
+	color: var(--color-main-text);
+}
 .lists-view__description {
 	color: var(--color-text-lighter);
 	margin: 0 0 16px;
@@ -360,5 +404,26 @@ export default {
 	padding: 92px 48px 48px;
 	text-align: center;
 	color: var(--color-text-lighter);
+}
+
+/* ── Mobile: reclaim horizontal space ── */
+@media (max-width: 768px) {
+	.lists-view {
+		padding: 4px 0 16px 8px;
+	}
+	.lists-view h2 {
+		padding: 44px 8px 0 0;
+		font-size: 1.15em;
+	}
+	.lists-view__counts {
+		padding: 0 8px 0 0;
+	}
+	.lists-view__description {
+		padding: 0 8px 0 0;
+		font-size: 0.9em;
+	}
+	.lists-empty {
+		padding: 80px 16px 32px;
+	}
 }
 </style>

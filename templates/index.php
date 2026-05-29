@@ -1,10 +1,11 @@
 <?php
 /** @var \OCP\IL10N $l */
 \OCP\Util::addScript('lists', 'lists-main');
+$urlGenerator = \OCP\Server::get(\OCP\IURLGenerator::class);
 \OCP\Util::addHeader('link', [
 	'rel'  => 'icon',
 	'type' => 'image/svg+xml',
-	'href' => '/apps/lists/img/app.svg',
+	'href' => $urlGenerator->imagePath('lists', 'favicon.svg'),
 ]);
 ?>
 <div id="lists-root"></div>

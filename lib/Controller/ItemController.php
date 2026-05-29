@@ -35,7 +35,7 @@ class ItemController extends OCSController {
 
     #[NoAdminRequired]
     public function suggest(int $listId, string $q = ''): DataResponse {
-        if (mb_strlen($q) < 2) {
+        if (mb_strlen($q) < 1) {
             return new DataResponse([]);
         }
         try {

@@ -3,6 +3,12 @@ import { showError, showSuccess } from '@nextcloud/dialogs'
 import { translate as t } from '@nextcloud/l10n'
 import { listsApi } from '../services/api.js'
 
+/** Parse `#/list/{id}` from the URL hash → numeric id or null. */
+function listIdFromHash() {
+	const m = (window.location.hash || '').match(/^#\/list\/(\d+)/)
+	return m ? Number(m[1]) : null
+}
+
 export const useListsStore = defineStore('lists', {
 	state: () => ({
 		lists: [],
@@ -21,9 +27,15 @@ export const useListsStore = defineStore('lists', {
 			this.error = null
 			try {
 				this.lists = await listsApi.getAll()
-				if (!this.selectedId && this.lists.length) {
-					this.selectedId = this.lists[0].id
+				const exists = (id) => id != null && this.lists.some((l) => l.id === id)
+				// Priority: URL hash (shareable link / F5) → current selection → first list
+				const hashId = listIdFromHash()
+				if (exists(hashId)) {
+					this.selectedId = hashId
+				} else if (!exists(this.selectedId)) {
+					this.selectedId = this.lists.length ? this.lists[0].id : null
 				}
+				this.syncHash()
 			} catch (e) {
 				this.error = e.message
 				showError(t('lists', 'Could not load lists'))
@@ -37,6 +49,7 @@ export const useListsStore = defineStore('lists', {
 				const list = await listsApi.create(name, description, hasQuantities)
 				this.lists.push(list)
 				this.selectedId = list.id
+				this.syncHash()
 				showSuccess(t('lists', 'List created'))
 			} catch {
 				showError(t('lists', 'Could not create list'))
@@ -65,6 +78,7 @@ export const useListsStore = defineStore('lists', {
 				this.lists = this.lists.filter((l) => l.id !== id)
 				if (this.selectedId === id) {
 					this.selectedId = this.lists[0]?.id ?? null
+					this.syncHash()
 				}
 				showSuccess(t('lists', 'List deleted'))
 			} catch {
@@ -74,6 +88,23 @@ export const useListsStore = defineStore('lists', {
 
 		select(id) {
 			this.selectedId = id
+			this.syncHash()
+		},
+
+		/** Reflect the current selection in the URL hash (shareable + survives F5). */
+		syncHash() {
+			const target = this.selectedId ? `#/list/${this.selectedId}` : ''
+			if (window.location.hash !== target) {
+				window.location.hash = target
+			}
+		},
+
+		/** Called on `hashchange` (back/forward, pasted link) → align selection. */
+		selectFromHash() {
+			const hashId = listIdFromHash()
+			if (hashId != null && hashId !== this.selectedId && this.lists.some((l) => l.id === hashId)) {
+				this.selectedId = hashId
+			}
 		},
 
 		async reorder(orderedIds) {

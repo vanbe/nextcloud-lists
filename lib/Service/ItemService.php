@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OCA\Lists\Service;
 
+use OCA\Lists\Db\CategoryMapper;
 use OCA\Lists\Db\ItemEntity;
 use OCA\Lists\Db\ItemMapper;
 use OCA\Lists\Exception\ForbiddenException;
@@ -12,8 +13,22 @@ use OCA\Lists\Exception\NotFoundException;
 class ItemService {
     public function __construct(
         private readonly ItemMapper        $itemMapper,
+        private readonly CategoryMapper    $categoryMapper,
         private readonly PermissionService $permissionService,
     ) {}
+
+    /**
+     * A category can only be assigned to an item of the SAME list.
+     * Prevents binding an item to a category id belonging to another list.
+     *
+     * @throws NotFoundException
+     */
+    private function assertCategoryInList(?int $categoryId, int $listId): void {
+        if ($categoryId === null) {
+            return;
+        }
+        $this->categoryMapper->find($categoryId, $listId); // throws NotFoundException if not in list
+    }
 
     /** @return ItemEntity[] */
     public function findAll(int $listId, string $uid): array {
@@ -35,6 +50,7 @@ class ItemService {
         if (!$this->permissionService->canWrite($listId, $uid)) {
             throw new ForbiddenException();
         }
+        $this->assertCategoryInList($categoryId, $listId);
 
         $entity = new ItemEntity();
         $entity->setListId($listId);
@@ -62,6 +78,7 @@ class ItemService {
             $entity->setDescription($description);
         }
         if ($categoryId !== false) {
+            $this->assertCategoryInList($categoryId, $listId);
             $entity->setCategoryId($categoryId);
         }
         // quantity: false = not provided, null = unset (send 0 as sentinel from JS), int = set

@@ -52,9 +52,6 @@
 				<button class="cat-bar__manage" :title="t('lists', 'Manage categories')" @click="manageOpen = true">
 					⚙
 				</button>
-				<button class="cat-bar__add" @click="onAddCategory">
-					+
-				</button>
 			</div>
 
 			<ManageCategoriesModal
@@ -77,7 +74,7 @@
 					<li v-if="catStore.categories.length" class="item-list__group-header">
 						<span>
 							<span v-if="group.categoryIcon" class="item-list__group-icon">{{ group.categoryIcon }}</span>
-							{{ group.categoryName }}
+							{{ group.categoryName }} ({{ group.items.length }})
 						</span>
 						<button
 							v-if="group.items.length > 1"
@@ -96,14 +93,20 @@
 							:checked="item.checked"
 							class="item-list__checkbox"
 							@change="store.toggle(list.id, item.id)" />
-						<!-- Quantity stepper — left of title, fixed-width so titles align -->
-						<div v-if="list.hasQuantities" class="item-list__stepper" @click.stop>
+						<!-- Quantity badge — click to open picker -->
+						<div v-if="list.hasQuantities" class="item-list__qty-wrap" @click.stop>
 							<button
-								class="item-list__step-btn"
-								:disabled="(item.quantity ?? 1) <= 1"
-								@click="changeQty(item, -1)">−</button>
-							<span class="item-list__step-val">{{ item.quantity ?? 1 }}</span>
-							<button class="item-list__step-btn" @click="changeQty(item, +1)">+</button>
+								type="button"
+								class="item-list__qty-badge"
+								:title="t('lists', 'Change quantity')"
+								@click="openQtyPicker(item)">
+								×{{ item.quantity ?? 1 }}
+							</button>
+							<QuantityPicker
+								v-if="qtyPickerItemId === item.id"
+								:value="item.quantity ?? 1"
+								@apply="onQtyApply(item, $event)"
+								@close="qtyPickerItemId = null" />
 						</div>
 						<span
 							v-if="editingItemId !== item.id"
@@ -127,10 +130,13 @@
 						<div v-if="catStore.categories.length" class="item-list__cat-wrap">
 							<button
 								class="item-list__cat-badge"
-								:class="{ 'item-list__cat-badge--set': item.categoryId }"
-								:title="t('lists', 'Change category')"
+								:class="{
+									'item-list__cat-badge--set': item.categoryId,
+									'item-list__cat-badge--icon': categoryIcon(item.categoryId),
+								}"
+								:title="categoryName(item.categoryId)"
 								@click.stop="openCatPicker(item)">
-								{{ categoryName(item.categoryId) }}
+								{{ categoryBadgeLabel(item.categoryId) }}
 							</button>
 							<div v-if="catPickerItemId === item.id" class="item-list__cat-picker">
 								<button
@@ -152,7 +158,7 @@
 						<button
 							class="item-list__delete"
 							:title="t('lists', 'Delete')"
-							@click="store.destroy(list.id, item.id)">
+							@click="askDeleteItem(item)">
 							✕
 						</button>
 					</li>
@@ -161,7 +167,7 @@
 				<!-- Checked section -->
 				<template v-if="store.checked.length">
 					<li class="item-list__separator">
-						<span>{{ t('lists', 'Checked') }}</span>
+						<span>{{ t('lists', 'Checked') }} ({{ store.checked.length }})</span>
 						<div class="item-list__separator-actions">
 							<button
 								class="item-list__bulk-btn"
@@ -209,20 +215,20 @@
 							@blur="commitEdit(item)"
 							@keydown.enter.prevent="commitEdit(item)"
 							@keydown.escape.prevent="cancelEdit" />
+						<button
+							v-if="editingItemId !== item.id"
+							class="item-list__edit"
+							:title="t('lists', 'Rename')"
+							@click.stop="startEdit(item)">✎</button>
 						<span
 							v-if="catStore.categories.length && item.categoryId && editingItemId !== item.id"
 							class="item-list__cat-chip">
 							{{ categoryLabel(item.categoryId) }}
 						</span>
 						<button
-							v-if="editingItemId !== item.id"
-							class="item-list__edit"
-							:title="t('lists', 'Rename')"
-							@click.stop="startEdit(item)">✎</button>
-						<button
 							class="item-list__delete"
 							:title="t('lists', 'Delete')"
-							@click="store.destroy(list.id, item.id)">
+							@click="askDeleteItem(item)">
 							✕
 						</button>
 					</li>
@@ -243,11 +249,12 @@ import { useCategoriesStore } from '../store/categories.js'
 import ItemInput from './ItemInput.vue'
 import ConfirmModal from './ConfirmModal.vue'
 import ManageCategoriesModal from './ManageCategoriesModal.vue'
+import QuantityPicker from './QuantityPicker.vue'
 
 export default {
 	name: 'ItemList',
 
-	components: { ItemInput, ConfirmModal, ManageCategoriesModal },
+	components: { ItemInput, ConfirmModal, ManageCategoriesModal, QuantityPicker },
 
 	props: {
 		list: { type: Object, required: true },
@@ -265,6 +272,7 @@ export default {
 		return {
 			addCategoryId: null,
 			catPickerItemId: null,
+			qtyPickerItemId: null,
 			manageOpen: false,
 			confirm: { show: false, message: '', label: 'OK', resolve: null },
 			editingItemId: null,
@@ -354,10 +362,12 @@ export default {
 
 	mounted() {
 		document.addEventListener('click', this.closeCatPicker)
+		document.addEventListener('click', this.closeQtyPicker)
 	},
 
 	beforeUnmount() {
 		document.removeEventListener('click', this.closeCatPicker)
+		document.removeEventListener('click', this.closeQtyPicker)
 	},
 
 	methods: {
@@ -369,6 +379,21 @@ export default {
 			return cat ? cat.name : t('lists', 'Category…')
 		},
 
+		// Badge content for active items: icon when the category has one, else its name
+		categoryBadgeLabel(categoryId) {
+			if (!categoryId) return t('lists', 'Category…')
+			const cat = this.catStore.categories.find((c) => c.id === categoryId)
+			if (!cat) return t('lists', 'Category…')
+			return cat.icon || cat.name
+		},
+
+		// Returns the category's icon (emoji) or '' — used to switch badge styling
+		categoryIcon(categoryId) {
+			if (!categoryId) return ''
+			const cat = this.catStore.categories.find((c) => c.id === categoryId)
+			return cat?.icon || ''
+		},
+
 		// Returns the icon (if set) or the name — used for the compact chip on checked items
 		categoryLabel(categoryId) {
 			const cat = this.catStore.categories.find((c) => c.id === categoryId)
@@ -377,14 +402,6 @@ export default {
 
 		toggleAddCategory(catId) {
 			this.addCategoryId = this.addCategoryId === catId ? null : catId
-		},
-
-		async onAddCategory() {
-			const name = window.prompt(t('lists', 'Category name'))
-			if (name?.trim()) {
-				const cat = await this.catStore.create(this.list.id, name.trim())
-				if (cat) this.addCategoryId = cat.id
-			}
 		},
 
 		openCatPicker(item) {
@@ -467,7 +484,12 @@ export default {
 			await this.store.create(this.list.id, title, this.addCategoryId, quantity)
 		},
 
-		async onSelectSuggestion(item) {
+		async onSelectSuggestion({ item, quantity }) {
+			// Apply a transferred quantity first (if the user set one and it differs)
+			if (quantity != null && quantity !== (item.quantity ?? 1)) {
+				await this.store.updateQuantity(this.list.id, item.id, quantity)
+			}
+			// Reactivate a checked item (uncheck = "I want it again")
 			if (item.checked) {
 				await this.store.toggle(this.list.id, item.id)
 			}
@@ -512,10 +534,23 @@ export default {
 			this.editDraft = ''
 		},
 
-		async changeQty(item, delta) {
+		openQtyPicker(item) {
+			this.catPickerItemId = null
+			this.qtyPickerItemId = this.qtyPickerItemId === item.id ? null : item.id
+		},
+
+		closeQtyPicker(e) {
+			if (!e.target.closest?.('.item-list__qty-wrap')) {
+				this.qtyPickerItemId = null
+			}
+		},
+
+		async onQtyApply(item, qty) {
+			this.qtyPickerItemId = null
 			const current = item.quantity ?? 1
-			const qty = Math.max(1, current + delta)
-			await this.store.updateQuantity(this.list.id, item.id, qty)
+			if (qty !== current) {
+				await this.store.updateQuantity(this.list.id, item.id, qty)
+			}
 		},
 
 		async clearChecked() {
@@ -539,6 +574,15 @@ export default {
 			return new Promise((resolve) => {
 				this.confirm = { show: true, message, label, resolve }
 			})
+		},
+
+		async askDeleteItem(item) {
+			const ok = await this.ask(
+				t('lists', 'Delete "{title}"?', { title: item.title }),
+				t('lists', 'Delete'),
+			)
+			if (!ok) return
+			await this.store.destroy(this.list.id, item.id)
 		},
 
 		async askCheckAll() {
@@ -577,6 +621,11 @@ export default {
 <style scoped>
 .item-list {
 	padding: 24px;
+}
+@media (max-width: 768px) {
+	.item-list {
+		padding: 8px 8px 24px 8px;
+	}
 }
 
 /* ── Pull to refresh ── */
@@ -645,8 +694,7 @@ export default {
 .cat-bar__chip-name {
 	line-height: 1;
 }
-.cat-bar__manage,
-.cat-bar__add {
+.cat-bar__manage {
 	width: 32px;
 	height: 32px;
 	border: 1px dashed var(--color-border);
@@ -659,8 +707,7 @@ export default {
 	align-items: center;
 	justify-content: center;
 }
-.cat-bar__manage:hover,
-.cat-bar__add:hover {
+.cat-bar__manage:hover {
 	background: var(--color-background-hover);
 	color: var(--color-main-text);
 }
@@ -779,6 +826,13 @@ export default {
 	background: var(--color-background-dark);
 	color: var(--color-main-text);
 }
+.item-list__cat-badge--icon {
+	font-size: 1.1em;
+	padding: 2px 6px;
+	min-width: 30px;
+	text-align: center;
+	line-height: 1.2;
+}
 .item-list__cat-picker {
 	position: absolute;
 	right: 0;
@@ -807,49 +861,34 @@ export default {
 	background: var(--color-background-hover);
 }
 
-/* ── Quantity stepper on item rows ── */
-.item-list__stepper {
-	display: flex;
-	align-items: center;
+/* ── Quantity badge + picker on item rows ── */
+.item-list__qty-wrap {
+	position: relative;
 	flex-shrink: 0;
-	gap: 2px;
 }
-.item-list__step-btn {
+.item-list__qty-badge {
 	background: var(--color-background-dark);
 	border: 1px solid var(--color-border);
-	border-radius: 50%;
+	border-radius: 14px;
 	cursor: pointer;
-	font-size: 1em;
+	color: var(--color-primary);
+	font-weight: 700;
+	font-size: 0.9em;
 	line-height: 1;
-	width: 28px;
-	height: 28px;
+	padding: 6px 10px;
+	min-height: 32px;
 	min-width: 44px;
-	min-height: 44px;
-	display: flex;
+	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	color: var(--color-main-text);
 	transition: background 0.12s;
 	-webkit-tap-highlight-color: transparent;
 }
-.item-list__step-btn:active:not(:disabled),
-.item-list__step-btn:hover:not(:disabled) {
+.item-list__qty-badge:hover,
+.item-list__qty-badge:active {
 	background: var(--color-primary);
 	color: var(--color-primary-text);
 	border-color: var(--color-primary);
-}
-.item-list__step-btn:disabled {
-	opacity: 0.35;
-	cursor: default;
-}
-.item-list__step-val {
-	width: 32px;
-	text-align: center;
-	font-size: 0.9em;
-	font-weight: 700;
-	color: var(--color-primary);
-	user-select: none;
-	flex-shrink: 0;
 }
 .item-list__delete {
 	background: none;
@@ -858,6 +897,17 @@ export default {
 	opacity: 0;
 	color: var(--color-text-lighter);
 	padding: 4px;
+	transition: opacity 0.12s, color 0.12s;
+	flex-shrink: 0;
+}
+.item-list__delete:hover {
+	color: var(--color-error);
+}
+/* On touch devices (no hover) keep the delete affordance always visible, greyed */
+@media (hover: none) {
+	.item-list__delete {
+		opacity: 0.35;
+	}
 }
 .item-list__separator {
 	list-style: none;

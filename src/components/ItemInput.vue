@@ -1,11 +1,20 @@
 <template>
 	<div class="item-input" @keydown.esc="closeSuggestions">
 		<div class="item-input__row">
-			<!-- Quantity stepper (left of title, only when list has quantities) -->
-			<div v-if="hasQuantities" class="item-input__stepper">
-				<button class="item-input__step-btn" type="button" :disabled="quantity <= 1" @click="decrementQty">−</button>
-				<span class="item-input__step-val">{{ quantity }}</span>
-				<button class="item-input__step-btn" type="button" @click="incrementQty">+</button>
+			<!-- Quantity badge (left of title, only when list has quantities) -->
+			<div v-if="hasQuantities" class="item-input__qty-wrap" @click.stop>
+				<button
+					type="button"
+					class="item-input__qty-badge"
+					:title="t('lists', 'Change quantity')"
+					@click="qtyPickerOpen = !qtyPickerOpen">
+					×{{ quantity }}
+				</button>
+				<QuantityPicker
+					v-if="qtyPickerOpen"
+					:value="quantity"
+					@apply="onQtyApply"
+					@close="qtyPickerOpen = false" />
 			</div>
 
 			<input
@@ -30,8 +39,11 @@
 				class="item-input__btn"
 				type="button"
 				:disabled="!title.trim()"
+				:aria-label="t('lists', 'Add')"
+				:title="t('lists', 'Add')"
 				@click="submit">
-				{{ t('lists', 'Add') }}
+				<span class="item-input__btn-text">{{ t('lists', 'Add') }}</span>
+				<span class="item-input__btn-icon" aria-hidden="true">+</span>
 			</button>
 		</div>
 
@@ -47,9 +59,8 @@
 				@mousedown.prevent="selectSuggestion(item)">
 				<span class="item-input__suggestion-icon">{{ item.checked ? '✓' : '○' }}</span>
 				<span class="item-input__suggestion-title">{{ item.title }}</span>
-				<span v-if="item.checked" class="item-input__suggestion-hint">
-					{{ t('lists', 'already checked — will uncheck') }}
-				</span>
+				<span v-if="hasQuantities" class="item-input__suggestion-qty">×{{ item.quantity ?? 1 }}</span>
+				<span class="item-input__suggestion-hint">{{ suggestionHint(item) }}</span>
 			</li>
 		</ul>
 	</div>
@@ -58,9 +69,12 @@
 <script>
 import { translate as t } from '@nextcloud/l10n'
 import { itemsApi } from '../services/api.js'
+import QuantityPicker from './QuantityPicker.vue'
 
 export default {
 	name: 'ItemInput',
+
+	components: { QuantityPicker },
 
 	props: {
 		listId: { type: Number, required: true },
@@ -75,6 +89,8 @@ export default {
 		return {
 			title: '',
 			quantity: 1,
+			quantityTouched: false,
+			qtyPickerOpen: false,
 			suggestions: [],
 			focusedIdx: -1,
 			debounceTimer: null,
@@ -95,11 +111,28 @@ export default {
 		onInput() {
 			clearTimeout(this.debounceTimer)
 			this.focusedIdx = -1
-			if (this.title.trim().length < 2) {
+			if (this.title.trim().length < 1) {
 				this.suggestions = []
 				return
 			}
 			this.debounceTimer = setTimeout(() => this.fetchSuggestions(), 150)
+		},
+
+		// Adaptive hint shown to the right of a suggestion
+		suggestionHint(item) {
+			const willTransfer = this.hasQuantities && this.quantityTouched
+			const current = item.quantity ?? 1
+			if (item.checked) {
+				if (willTransfer && this.quantity !== current) {
+					return t('lists', 'will uncheck · qty → {q}', { q: this.quantity })
+				}
+				return t('lists', 'will uncheck')
+			}
+			// Already in the active list
+			if (willTransfer && this.quantity !== current) {
+				return t('lists', 'in list · qty → {q}', { q: this.quantity })
+			}
+			return t('lists', 'already in list')
 		},
 
 		async fetchSuggestions() {
@@ -124,12 +157,10 @@ export default {
 			}
 		},
 
-		incrementQty() {
-			this.quantity++
-		},
-
-		decrementQty() {
-			if (this.quantity > 1) this.quantity--
+		onQtyApply(qty) {
+			this.quantity = qty
+			this.quantityTouched = true
+			this.qtyPickerOpen = false
 		},
 
 		onBlur() {
@@ -142,10 +173,14 @@ export default {
 		},
 
 		async selectSuggestion(item) {
+			// Only transfer the typed quantity if the user explicitly set one
+			const quantity = (this.hasQuantities && this.quantityTouched) ? this.quantity : null
 			this.title = ''
 			this.quantity = 1
+			this.quantityTouched = false
+			this.qtyPickerOpen = false
 			this.closeSuggestions()
-			this.$emit('select-suggestion', item)
+			this.$emit('select-suggestion', { item, quantity })
 			this.$refs.inputEl?.focus()
 		},
 
@@ -155,6 +190,8 @@ export default {
 			this.$emit('add', { title: trimmed, quantity: this.hasQuantities ? this.quantity : null })
 			this.title = ''
 			this.quantity = 1
+			this.quantityTouched = false
+			this.qtyPickerOpen = false
 			this.closeSuggestions()
 		},
 	},
@@ -172,46 +209,34 @@ export default {
 	align-items: stretch;
 }
 
-/* ── Quantity stepper in the add row ── */
-.item-input__stepper {
+/* ── Quantity badge in the add row ── */
+.item-input__qty-wrap {
+	position: relative;
+	flex-shrink: 0;
 	display: flex;
-	align-items: stretch;
+}
+.item-input__qty-badge {
+	background: var(--color-background-dark);
 	border: 1px solid var(--color-border);
 	border-radius: var(--border-radius);
-	overflow: hidden;
-	flex-shrink: 0;
-}
-.item-input__step-btn {
-	background: var(--color-background-dark);
-	border: none;
 	cursor: pointer;
-	font-size: 1.2em;
-	line-height: 1;
-	width: 36px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	color: var(--color-main-text);
-	transition: background 0.15s;
-}
-.item-input__step-btn:hover:not(:disabled) {
-	background: var(--color-background-hover);
-}
-.item-input__step-btn:disabled {
-	opacity: 0.4;
-	cursor: default;
-}
-.item-input__step-val {
-	min-width: 36px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
+	color: var(--color-primary);
+	font-weight: 700;
 	font-size: 0.95em;
-	font-weight: 600;
-	background: var(--color-main-background);
-	border-left: 1px solid var(--color-border);
-	border-right: 1px solid var(--color-border);
-	padding: 0 4px;
+	line-height: 1;
+	padding: 0 12px;
+	min-width: 48px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	transition: background 0.12s;
+	-webkit-tap-highlight-color: transparent;
+}
+.item-input__qty-badge:hover,
+.item-input__qty-badge:active {
+	background: var(--color-primary);
+	color: var(--color-primary-text);
+	border-color: var(--color-primary);
 }
 
 .item-input__field {
@@ -230,6 +255,28 @@ export default {
 	border-radius: var(--border-radius);
 	cursor: pointer;
 	white-space: nowrap;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+.item-input__btn-icon {
+	display: none;
+	font-size: 1.4em;
+	line-height: 1;
+}
+/* Mobile: compact "+" button */
+@media (max-width: 767px) {
+	.item-input__btn {
+		padding: 0;
+		width: 44px;
+		flex-shrink: 0;
+	}
+	.item-input__btn-text {
+		display: none;
+	}
+	.item-input__btn-icon {
+		display: inline;
+	}
 }
 .item-input__btn:disabled {
 	opacity: 0.5;
@@ -280,14 +327,24 @@ export default {
 }
 .item-input__suggestion-title {
 	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 .item-input__suggestion--checked .item-input__suggestion-title {
 	text-decoration: line-through;
 	color: var(--color-text-lighter);
 }
+.item-input__suggestion-qty {
+	font-size: 0.85em;
+	font-weight: 700;
+	color: var(--color-primary);
+	flex-shrink: 0;
+}
 .item-input__suggestion-hint {
 	font-size: 0.75em;
 	color: var(--color-text-lighter);
 	white-space: nowrap;
+	flex-shrink: 0;
 }
 </style>

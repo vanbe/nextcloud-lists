@@ -7,6 +7,7 @@ namespace OCA\Lists\Controller;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\OCSController;
+use OCP\IConfig;
 use OCP\IGroupManager;
 use OCP\IRequest;
 use OCP\IUserManager;
@@ -17,13 +18,23 @@ class UserController extends OCSController {
         IRequest $request,
         private readonly IUserManager  $userManager,
         private readonly IGroupManager $groupManager,
+        private readonly IConfig       $config,
     ) {
         parent::__construct($appName, $request);
     }
 
+    /**
+     * Respect the instance privacy setting that governs the share dialog
+     * autocomplete. When the admin disabled user/group enumeration, this app
+     * must not become a side-channel for it.
+     */
+    private function enumerationAllowed(): bool {
+        return $this->config->getAppValue('core', 'shareapi_allow_share_dialog_user_enumeration', 'yes') === 'yes';
+    }
+
     #[NoAdminRequired]
     public function searchUsers(string $q = ''): DataResponse {
-        if (mb_strlen($q) < 2) {
+        if (mb_strlen($q) < 2 || !$this->enumerationAllowed()) {
             return new DataResponse([]);
         }
 
@@ -38,7 +49,7 @@ class UserController extends OCSController {
 
     #[NoAdminRequired]
     public function searchGroups(string $q = ''): DataResponse {
-        if (mb_strlen($q) < 2) {
+        if (mb_strlen($q) < 2 || !$this->enumerationAllowed()) {
             return new DataResponse([]);
         }
 
