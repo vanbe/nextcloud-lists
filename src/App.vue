@@ -82,17 +82,21 @@
 </template>
 
 <script>
-import { NcAppNavigation } from '@nextcloud/vue'
+import { defineAsyncComponent } from 'vue'
+import NcAppNavigation from '@nextcloud/vue/components/NcAppNavigation'
 import { translate as t } from '@nextcloud/l10n'
 import { getCurrentUser } from '@nextcloud/auth'
 import { emit, subscribe, unsubscribe } from '@nextcloud/event-bus'
 import { useListsStore } from './store/lists.js'
 import { useItemsStore } from './store/items.js'
 import ItemList from './components/ItemList.vue'
-import ShareModal from './components/ShareModal.vue'
-import ListFormModal from './components/ListFormModal.vue'
-import ReorderModal from './components/ReorderModal.vue'
-import ExportModal from './components/ExportModal.vue'
+
+// Modals are only shown on user action → load them on demand (keeps the
+// initial bundle small; markdown-it, the emoji picker, etc. stay out of it).
+const ShareModal = defineAsyncComponent(() => import('./components/ShareModal.vue'))
+const ListFormModal = defineAsyncComponent(() => import('./components/ListFormModal.vue'))
+const ReorderModal = defineAsyncComponent(() => import('./components/ReorderModal.vue'))
+const ExportModal = defineAsyncComponent(() => import('./components/ExportModal.vue'))
 
 export default {
 	name: 'App',

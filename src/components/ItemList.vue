@@ -242,14 +242,16 @@
 </template>
 
 <script>
-import { nextTick } from 'vue'
+import { defineAsyncComponent, nextTick } from 'vue'
 import { translate as t } from '@nextcloud/l10n'
 import { useItemsStore } from '../store/items.js'
 import { useCategoriesStore } from '../store/categories.js'
 import ItemInput from './ItemInput.vue'
 import ConfirmModal from './ConfirmModal.vue'
-import ManageCategoriesModal from './ManageCategoriesModal.vue'
 import QuantityPicker from './QuantityPicker.vue'
+
+// Pulls IconPickerDialog + the emoji dataset → load only when opened.
+const ManageCategoriesModal = defineAsyncComponent(() => import('./ManageCategoriesModal.vue'))
 
 export default {
 	name: 'ItemList',
