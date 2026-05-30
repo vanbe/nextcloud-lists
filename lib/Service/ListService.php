@@ -9,6 +9,7 @@ use OCA\Lists\Db\ItemMapper;
 use OCA\Lists\Db\ListEntity;
 use OCA\Lists\Db\ListMapper;
 use OCA\Lists\Db\ShareMapper;
+use OCA\Lists\Db\UserPositionMapper;
 use OCA\Lists\Exception\ForbiddenException;
 use OCA\Lists\Exception\NotFoundException;
 use OCP\IGroupManager;
@@ -16,12 +17,13 @@ use OCP\IUserManager;
 
 class ListService {
     public function __construct(
-        private readonly ListMapper    $mapper,
-        private readonly ItemMapper    $itemMapper,
-        private readonly ShareMapper   $shareMapper,
-        private readonly CategoryMapper $categoryMapper,
-        private readonly IGroupManager $groupManager,
-        private readonly IUserManager  $userManager,
+        private readonly ListMapper         $mapper,
+        private readonly ItemMapper         $itemMapper,
+        private readonly ShareMapper        $shareMapper,
+        private readonly CategoryMapper     $categoryMapper,
+        private readonly UserPositionMapper $positionMapper,
+        private readonly IGroupManager      $groupManager,
+        private readonly IUserManager       $userManager,
     ) {}
 
     /** @return ListEntity[] owned + shared, with activeItemCount populated */
@@ -42,8 +44,6 @@ class ListService {
 
     /** @throws NotFoundException|ForbiddenException */
     public function find(int $id, string $uid): ListEntity {
-        // Used by ItemService only — delegated to PermissionService there.
-        // Keep for direct owner checks in update/delete.
         return $this->mapper->find($id, $uid);
     }
 
@@ -55,7 +55,14 @@ class ListService {
         $entity->setIcon($icon);
         $entity->setHasQuantities($hasQuantities);
 
-        return $this->mapper->insert($entity);
+        $created = $this->mapper->insert($entity);
+
+        // Owner sees their new list at the bottom of their personal order.
+        $max = $this->positionMapper->maxPositionFor($uid);
+        $this->positionMapper->ensureRow($uid, $created->getId(), ($max ?? -1) + 1);
+
+        $created->setUserPosition(($max ?? -1) + 1);
+        return $created;
     }
 
     /**
@@ -86,25 +93,27 @@ class ListService {
     }
 
     /**
-     * Update the display order of lists owned by the user.
-     * Only IDs that belong to the user are updated; others are silently skipped.
+     * Save the user's personal ordering of any lists they can see.
+     * IDs not visible to the user are silently dropped.
      *
      * @param int[] $orderedIds  list IDs in the desired display order
      */
     public function reorder(string $uid, array $orderedIds): void {
-        $ownedLists = $this->mapper->findAll($uid);
-        $ownedIds   = array_map(fn($l) => $l->getId(), $ownedLists);
+        $groups  = $this->getUserGroups($uid);
+        $visible = $this->mapper->findAllForUser($uid, $groups);
+        $visibleIds = array_flip(array_map(fn($l) => $l->getId(), $visible));
 
         $positions = [];
         $pos = 0;
         foreach ($orderedIds as $id) {
-            if (in_array((int) $id, $ownedIds, true)) {
-                $positions[(int) $id] = $pos++;
+            $id = (int) $id;
+            if (isset($visibleIds[$id])) {
+                $positions[$id] = $pos++;
             }
         }
 
         if (!empty($positions)) {
-            $this->mapper->updatePositions($positions);
+            $this->positionMapper->setPositions($uid, $positions);
         }
     }
 
@@ -122,6 +131,7 @@ class ListService {
         $this->itemMapper->deleteAllForList($id);
         $this->categoryMapper->deleteAllForList($id);
         $this->shareMapper->deleteAllForList($id);
+        $this->positionMapper->deleteAllForList($id);
         $this->mapper->delete($entity);
     }
 

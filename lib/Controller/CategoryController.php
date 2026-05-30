@@ -36,7 +36,7 @@ class CategoryController extends OCSController {
     }
 
     #[NoAdminRequired]
-    public function create(int $listId, string $name, string $icon = '', int $position = 0): DataResponse {
+    public function create(int $listId, string $name, string $icon = '', ?int $position = null): DataResponse {
         if (trim($name) === '') {
             return new DataResponse(['message' => 'Name is required'], Http::STATUS_BAD_REQUEST);
         }
@@ -75,6 +75,18 @@ class CategoryController extends OCSController {
             return new DataResponse($entity->jsonSerialize());
         } catch (NotFoundException) {
             return new DataResponse(['message' => 'Not found'], Http::STATUS_NOT_FOUND);
+        } catch (ForbiddenException) {
+            return new DataResponse(['message' => 'Forbidden'], Http::STATUS_FORBIDDEN);
+        }
+    }
+
+    #[NoAdminRequired]
+    public function reorder(int $listId, array $order = []): DataResponse {
+        try {
+            $this->service->reorder($listId, $this->userId, $order);
+            return new DataResponse();
+        } catch (NotFoundException) {
+            return new DataResponse(['message' => 'List not found'], Http::STATUS_NOT_FOUND);
         } catch (ForbiddenException) {
             return new DataResponse(['message' => 'Forbidden'], Http::STATUS_FORBIDDEN);
         }

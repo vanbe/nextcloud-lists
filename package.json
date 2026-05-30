@@ -19,10 +19,12 @@
     "markdown-it": "^14.2.0",
     "node-polyfill-webpack-plugin": "^4.0.0",
     "pinia": "^2.1.7",
+    "sortablejs": "^1.15.7",
     "style-loader": "^4.0.0",
     "vue": "^3.4.0",
     "vue-loader": "^17.4.2",
     "vue-material-design-icons": "^5.3.1",
+    "vuedraggable": "^4.1.0",
     "webpack": "^5.106.2",
     "webpack-dev-server": "^5.2.3"
   },

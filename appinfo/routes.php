@@ -27,9 +27,10 @@ return [
         ['name' => 'share#update',  'url' => '/api/v1/lists/{listId}/shares/{id}', 'verb' => 'PUT'],
         ['name' => 'share#destroy', 'url' => '/api/v1/lists/{listId}/shares/{id}', 'verb' => 'DELETE'],
 
-        ['name' => 'category#index',   'url' => '/api/v1/lists/{listId}/categories',      'verb' => 'GET'],
-        ['name' => 'category#create',  'url' => '/api/v1/lists/{listId}/categories',      'verb' => 'POST'],
-        ['name' => 'category#update',  'url' => '/api/v1/lists/{listId}/categories/{id}', 'verb' => 'PUT'],
-        ['name' => 'category#destroy', 'url' => '/api/v1/lists/{listId}/categories/{id}', 'verb' => 'DELETE'],
+        ['name' => 'category#index',   'url' => '/api/v1/lists/{listId}/categories',         'verb' => 'GET'],
+        ['name' => 'category#create',  'url' => '/api/v1/lists/{listId}/categories',         'verb' => 'POST'],
+        ['name' => 'category#reorder', 'url' => '/api/v1/lists/{listId}/categories/reorder', 'verb' => 'POST'],
+        ['name' => 'category#update',  'url' => '/api/v1/lists/{listId}/categories/{id}',    'verb' => 'PUT'],
+        ['name' => 'category#destroy', 'url' => '/api/v1/lists/{listId}/categories/{id}',    'verb' => 'DELETE'],
     ],
 ];

@@ -47,7 +47,7 @@ docker compose -f docker-compose.dev.yml exec nextcloud chown www-data:www-data 
 ```
 En NC33+, `maintenance:install` n'existe plus — l'entrypoint Docker installe NC automatiquement via les variables d'environnement. Ce fix (chown) est à rejouer uniquement après un `docker compose down -v`.
 
-**4.16 — OPcache en dev Docker.** PHP OPcache cache les fichiers compilés en mémoire. Quand tu modifies des fichiers PHP dans l'app, les routes ou les classes restent en cache jusqu'au prochain restart Apache/PHP-FPM. Si une route nouvellement déclarée retourne OCS 998 alors que tout semble correct, un `docker compose restart nextcloud` vide l'OPcache et suffit à résoudre le problème.
+**4.16 — OPcache en dev Docker.** Depuis 2026-05-30 le compose dev mount `./dev/opcache.ini` → `/usr/local/etc/php/conf.d/zz-dev-opcache.ini` qui force `opcache.revalidate_freq=0` : PHP recontrôle le mtime à chaque requête, donc les modifs PHP sont prises immédiatement, **sans `docker compose restart`**. Si tu tombes encore sur du cache (routes inexistantes en 998, classes obsolètes), vérifie que le mount est bien actif (`docker exec ... php -i | grep revalidate_freq` doit afficher `=> 0`).
 
 **4.19 — `NcEmojiPicker` ne s'ouvre pas en @vue/compat MODE:2.** Le picker enveloppe son trigger via une chaîne de scoped-slots NcEmojiPicker → NcPopover → Dropdown (floating-vue) qui casse en compat mode : le click sur le slot trigger ne propage pas à floating-vue. Workaround : custom dialog avec input texte (l'utilisateur peut coller un emoji depuis le picker système — Win+`.`, Cmd+Ctrl+Espace, ou clavier emoji mobile) + grille de raccourcis (`IconPickerDialog.vue`). `emoji-mart-vue-fast` est dispo en transitive si on veut un vrai picker un jour, mais idem Vue 2.
 

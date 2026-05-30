@@ -1,3 +1,9 @@
+// Resolve webpack public path at runtime from the app webroot exposed by NC,
+// so dynamic chunks load from the right place when the app lives in custom_apps/
+// (URL prefix /custom_apps/lists/) instead of the production apps/ path.
+// Must run before any dynamic import().
+__webpack_public_path__ = (window.OC?.appswebroots?.lists ?? '/apps/lists') + '/js/'
+
 import { createApp, configureCompat } from '@vue/compat'
 import { createPinia } from 'pinia'
 import App from './App.vue'

@@ -2,16 +2,23 @@
 	<NcAppNavigation :aria-label="t('lists', 'Lists navigation')">
 		<template #list>
 			<li class="lists-nav__new">
-				<button class="lists-nav__new-btn" @click="onNewList">
+				<NcButton
+					class="lists-nav__new-btn"
+					variant="primary"
+					wide
+					@click="onNewList">
 					+ {{ t('lists', 'New list') }}
-				</button>
-				<button
+				</NcButton>
+				<NcButton
 					v-if="store.lists.length > 1"
-					class="lists-nav__reorder-btn"
+					variant="tertiary"
+					:aria-label="t('lists', 'Reorder lists')"
 					:title="t('lists', 'Reorder lists')"
 					@click="reorderOpen = true">
-					⇅
-				</button>
+					<template #icon>
+						<SwapVertical :size="20" />
+					</template>
+				</NcButton>
 			</li>
 			<li
 				v-for="list in store.lists"
@@ -21,26 +28,28 @@
 				@click="store.select(list.id)">
 				<span class="lists-nav__name">{{ list.name }}</span>
 				<span v-if="list.activeItemCount > 0" class="lists-nav__count">{{ list.activeItemCount }}</span>
-				<button
+				<NcActions
 					class="lists-nav__actions"
-					:title="t('lists', 'Actions')"
-					@click.stop="toggleMenu(list.id)">
-					⋮
-				</button>
-				<div v-if="openMenuId === list.id" class="lists-nav__menu">
-					<button class="lists-nav__menu-item" @click.stop="openEdit(list)">
+					:aria-label="t('lists', 'Actions')"
+					container="#app-navigation-vue"
+					@click.stop>
+					<NcActionButton @click="openEdit(list)">
+						<template #icon><Pencil :size="20" /></template>
 						{{ t('lists', 'Edit') }}
-					</button>
-					<button class="lists-nav__menu-item" @click.stop="openShare(list)">
+					</NcActionButton>
+					<NcActionButton @click="openShare(list)">
+						<template #icon><ShareVariant :size="20" /></template>
 						{{ t('lists', 'Share') }}
-					</button>
-					<button class="lists-nav__menu-item" @click.stop="openExport(list)">
+					</NcActionButton>
+					<NcActionButton @click="openExport(list)">
+						<template #icon><Download :size="20" /></template>
 						{{ t('lists', 'Export') }}
-					</button>
-					<button class="lists-nav__menu-item lists-nav__menu-item--danger" @click.stop="onDelete(list)">
+					</NcActionButton>
+					<NcActionButton @click="onDelete(list)">
+						<template #icon><Delete :size="20" /></template>
 						{{ t('lists', 'Delete') }}
-					</button>
-				</div>
+					</NcActionButton>
+				</NcActions>
 			</li>
 		</template>
 	</NcAppNavigation>
@@ -75,7 +84,6 @@
 	<ReorderModal
 		v-if="reorderOpen"
 		:lists="store.lists"
-		:current-user="currentUser"
 		@save="onReorder"
 		@close="reorderOpen = false" />
 	<ExportModal v-if="exportTarget" :list="exportTarget" @close="exportTarget = null" />
@@ -84,8 +92,15 @@
 <script>
 import { defineAsyncComponent } from 'vue'
 import NcAppNavigation from '@nextcloud/vue/components/NcAppNavigation'
+import NcButton from '@nextcloud/vue/components/NcButton'
+import NcActions from '@nextcloud/vue/components/NcActions'
+import NcActionButton from '@nextcloud/vue/components/NcActionButton'
+import Pencil from 'vue-material-design-icons/Pencil.vue'
+import ShareVariant from 'vue-material-design-icons/ShareVariant.vue'
+import Download from 'vue-material-design-icons/Download.vue'
+import Delete from 'vue-material-design-icons/Delete.vue'
+import SwapVertical from 'vue-material-design-icons/SwapVertical.vue'
 import { translate as t } from '@nextcloud/l10n'
-import { getCurrentUser } from '@nextcloud/auth'
 import { emit, subscribe, unsubscribe } from '@nextcloud/event-bus'
 import { useListsStore } from './store/lists.js'
 import { useItemsStore } from './store/items.js'
@@ -101,7 +116,22 @@ const ExportModal = defineAsyncComponent(() => import('./components/ExportModal.
 export default {
 	name: 'App',
 
-	components: { NcAppNavigation, ItemList, ShareModal, ListFormModal, ReorderModal, ExportModal },
+	components: {
+		NcAppNavigation,
+		NcButton,
+		NcActions,
+		NcActionButton,
+		Pencil,
+		ShareVariant,
+		Download,
+		Delete,
+		SwapVertical,
+		ItemList,
+		ShareModal,
+		ListFormModal,
+		ReorderModal,
+		ExportModal,
+	},
 
 	setup() {
 		const store = useListsStore()
@@ -125,33 +155,25 @@ export default {
 
 	data() {
 		return {
-			openMenuId: null,
 			shareTarget: null,
 			exportTarget: null,
 			formTarget: undefined, // undefined = hidden, null = create mode, object = edit mode
 			reorderOpen: false,
-			currentUser: getCurrentUser()?.uid ?? '',
-			// Swipe-gesture state
 			navOpen: false,
 			swipe: { startX: 0, startY: 0, startTime: 0, tracking: false },
 		}
 	},
 
 	mounted() {
-		document.addEventListener('click', this.closeMenu)
-		// Track NcAppNavigation open state
 		this.onNavToggled = ({ open }) => { this.navOpen = !!open }
 		subscribe('navigation-toggled', this.onNavToggled)
-		// Touch swipe listeners (Android open/close menu)
 		document.addEventListener('touchstart', this.onTouchStart, { passive: true })
 		document.addEventListener('touchend', this.onTouchEnd, { passive: true })
-		// Keep selection in sync with the URL hash (pasted link, back/forward)
 		this.onHashChange = () => this.store.selectFromHash()
 		window.addEventListener('hashchange', this.onHashChange)
 	},
 
 	beforeUnmount() {
-		document.removeEventListener('click', this.closeMenu)
 		unsubscribe('navigation-toggled', this.onNavToggled)
 		document.removeEventListener('touchstart', this.onTouchStart)
 		document.removeEventListener('touchend', this.onTouchEnd)
@@ -207,31 +229,19 @@ export default {
 			}
 		},
 
-		closeMenu() {
-			this.openMenuId = null
-		},
-
-		toggleMenu(id) {
-			this.openMenuId = this.openMenuId === id ? null : id
-		},
-
 		openShare(list) {
-			this.openMenuId = null
 			this.shareTarget = list
 		},
 
 		openExport(list) {
-			this.openMenuId = null
 			this.exportTarget = list
 		},
 
 		openEdit(list) {
-			this.openMenuId = null
 			this.formTarget = list
 		},
 
 		async onDelete(list) {
-			this.openMenuId = null
 			if (!window.confirm(t('lists', 'Delete "{name}"? This will permanently remove all its items.', { name: list.name }))) return
 			await this.store.destroy(list.id)
 		},
@@ -278,27 +288,6 @@ export default {
 }
 .lists-nav__new-btn {
 	flex: 1;
-	text-align: left;
-	background: none;
-	border: none;
-	cursor: pointer;
-	padding: 8px;
-	color: var(--color-primary);
-	font-weight: bold;
-}
-.lists-nav__reorder-btn {
-	background: none;
-	border: none;
-	cursor: pointer;
-	color: var(--color-text-lighter);
-	font-size: 1.1em;
-	padding: 4px 8px;
-	border-radius: var(--border-radius);
-	flex-shrink: 0;
-}
-.lists-nav__reorder-btn:hover {
-	background: var(--color-background-hover);
-	color: var(--color-main-text);
 }
 .lists-nav__item {
 	list-style: none;
@@ -329,56 +318,7 @@ export default {
 	flex-shrink: 0;
 }
 .lists-nav__actions {
-	background: none;
-	border: none;
-	cursor: pointer;
-	opacity: 0;
-	color: var(--color-text-lighter);
-	font-size: 1.2em;
-	line-height: 1;
-	padding: 2px 6px;
-	border-radius: var(--border-radius);
-}
-.lists-nav__item:hover .lists-nav__actions,
-.lists-nav__item--active .lists-nav__actions {
-	opacity: 1;
-}
-.lists-nav__actions:hover {
-	background: var(--color-background-dark);
-}
-.lists-nav__menu {
-	position: absolute;
-	right: 8px;
-	top: 100%;
-	background: var(--color-main-background);
-	border: 1px solid var(--color-border);
-	border-radius: var(--border-radius);
-	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-	z-index: 1000;
-	min-width: 140px;
-	padding: 4px 0;
-}
-.lists-nav__menu-item {
-	display: block;
-	width: 100%;
-	text-align: left;
-	background: none;
-	border: none;
-	cursor: pointer;
-	padding: 8px 16px;
-	color: var(--color-main-text);
-	font-size: 0.95em;
-}
-.lists-nav__menu-item:hover {
-	background: var(--color-background-hover);
-}
-.lists-nav__menu-item--danger {
-	color: #c0392b;
-	font-weight: 500;
-}
-.lists-nav__menu-item--danger:hover {
-	background: #fdecea;
-	color: #a93226;
+	flex-shrink: 0;
 }
 .lists-view {
 	padding: 12px 0 24px 24px;

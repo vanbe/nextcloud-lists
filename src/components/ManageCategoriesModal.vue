@@ -5,33 +5,57 @@
 		close-on-click-outside
 		@closing="$emit('close')">
 		<div class="mc__body">
-			<ul v-if="categories.length" class="mc__list">
-				<li v-for="cat in categories" :key="cat.id" class="mc__item">
-					<button
-						class="mc__icon-display"
-						:title="t('lists', 'Change icon')"
-						@click="openPickerForCat(cat)">
-						<span v-if="cat.icon" class="mc__icon-val">{{ cat.icon }}</span>
-						<span v-else class="mc__icon-placeholder">🙂</span>
-					</button>
+			<draggable
+				v-if="categories.length"
+				:list="categories"
+				tag="ul"
+				class="mc__list"
+				handle=".mc__handle"
+				item-key="id"
+				:animation="180"
+				:force-fallback="true"
+				:fallback-tolerance="3"
+				:scroll-sensitivity="80"
+				ghost-class="mc__item--ghost"
+				chosen-class="mc__item--chosen"
+				drag-class="mc__item--drag"
+				@end="onDragEnd">
+				<template #item="{ element: cat }">
+					<li class="mc__item">
+						<button
+							class="mc__handle"
+							type="button"
+							:aria-label="t('lists', 'Drag to reorder')"
+							:title="t('lists', 'Drag to reorder')">
+							<DragVertical :size="20" />
+						</button>
 
-					<input
-						v-model="drafts[cat.id]"
-						class="mc__name-input"
-						type="text"
-						maxlength="255"
-						:placeholder="t('lists', 'Name')"
-						@blur="onNameBlur(cat)"
-						@keydown.enter.prevent="onNameBlur(cat)" />
+						<button
+							class="mc__icon-display"
+							:title="t('lists', 'Change icon')"
+							@click="openPickerForCat(cat)">
+							<span v-if="cat.icon" class="mc__icon-val">{{ cat.icon }}</span>
+							<span v-else class="mc__icon-placeholder">🙂</span>
+						</button>
 
-					<button
-						class="mc__delete"
-						:title="t('lists', 'Delete category')"
-						@click="onDelete(cat)">
-						✕
-					</button>
-				</li>
-			</ul>
+						<input
+							v-model="drafts[cat.id]"
+							class="mc__name-input"
+							type="text"
+							maxlength="255"
+							:placeholder="t('lists', 'Name')"
+							@blur="onNameBlur(cat)"
+							@keydown.enter.prevent="onNameBlur(cat)" />
+
+						<button
+							class="mc__delete"
+							:title="t('lists', 'Delete category')"
+							@click="onDelete(cat)">
+							✕
+						</button>
+					</li>
+				</template>
+			</draggable>
 			<p v-else class="mc__empty">{{ t('lists', 'No categories yet.') }}</p>
 
 			<div class="mc__add">
@@ -73,6 +97,8 @@
 import { translate as t } from '@nextcloud/l10n'
 import NcDialog from '@nextcloud/vue/components/NcDialog'
 import NcButton from '@nextcloud/vue/components/NcButton'
+import draggable from 'vuedraggable'
+import DragVertical from 'vue-material-design-icons/DragVertical.vue'
 import IconPickerDialog from './IconPickerDialog.vue'
 import { useCategoriesStore } from '../store/categories.js'
 import { useItemsStore } from '../store/items.js'
@@ -80,7 +106,7 @@ import { useItemsStore } from '../store/items.js'
 export default {
 	name: 'ManageCategoriesModal',
 
-	components: { NcDialog, NcButton, IconPickerDialog },
+	components: { NcDialog, NcButton, draggable, DragVertical, IconPickerDialog },
 
 	props: {
 		listId: { type: Number, required: true },
@@ -172,6 +198,12 @@ export default {
 				this.newIcon = ''
 			}
 		},
+
+		onDragEnd(evt) {
+			if (evt.oldIndex === evt.newIndex) return
+			// vuedraggable with :list mutates `categories` in place — reorder is already reflected
+			this.catStore.reorder(this.listId, this.categories.map((c) => c.id))
+		},
 	},
 }
 </script>
@@ -202,6 +234,41 @@ export default {
 .mc__add {
 	padding-top: 12px;
 	border-top: 1px solid var(--color-border-dark);
+	padding-left: 32px; /* align with item content (which has a 32px wide handle column) */
+}
+.mc__handle {
+	background: transparent;
+	border: none;
+	color: var(--color-text-lighter);
+	cursor: grab;
+	padding: 6px;
+	border-radius: var(--border-radius);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	touch-action: none;
+	flex-shrink: 0;
+}
+.mc__handle:hover {
+	background: var(--color-background-hover);
+	color: var(--color-main-text);
+}
+.mc__handle:active {
+	cursor: grabbing;
+}
+/* SortableJS state classes */
+.mc__item--ghost {
+	opacity: 0.35;
+	background: var(--color-primary-light, rgba(0, 130, 201, 0.12));
+}
+.mc__item--chosen {
+	background: var(--color-background-hover);
+	border-radius: var(--border-radius);
+}
+.mc__item--drag {
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+	background: var(--color-main-background);
+	border-radius: var(--border-radius);
 }
 .mc__icon-display {
 	background: var(--color-background-dark);

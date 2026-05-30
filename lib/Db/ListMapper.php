@@ -57,20 +57,22 @@ class ListMapper extends QBMapper {
     }
 
     /**
-     * Returns all lists owned by or shared with the user (directly or via groups).
-     * Uses a LEFT JOIN on lists_shares to avoid subquery cross-table reference issues.
+     * Returns all lists owned by or shared with the user (directly or via groups),
+     * sorted by the user's personal ordering. Lists with no per-user position row
+     * (typically newly-shared group lists) sort to the end by created_at.
      *
      * @param string[] $groups
-     * @return ListEntity[]
+     * @return ListEntity[]  with userPosition virtual field populated
      */
     public function findAllForUser(string $uid, array $groups): array {
         $qb = $this->db->getQueryBuilder();
         $l  = $this->getTableName();
         $s  = 'lists_shares';
+        $p  = 'lists_user_positions';
 
-        // Build the JOIN condition for matching shares
+        // Access JOIN: list is visible if owned, or matched by a user-share, or a group-share for one of the user's groups.
         if (empty($groups)) {
-            $joinCondition = $qb->expr()->andX(
+            $shareJoin = $qb->expr()->andX(
                 $qb->expr()->eq('s.list_id', 'l.id'),
                 $qb->expr()->eq('s.share_type', $qb->createNamedParameter(0, IQueryBuilder::PARAM_INT)),
                 $qb->expr()->eq('s.share_with', $qb->createNamedParameter($uid))
@@ -80,7 +82,7 @@ class ListMapper extends QBMapper {
                 fn($g) => $qb->createNamedParameter($g),
                 $groups
             );
-            $joinCondition = $qb->expr()->andX(
+            $shareJoin = $qb->expr()->andX(
                 $qb->expr()->eq('s.list_id', 'l.id'),
                 $qb->expr()->orX(
                     $qb->expr()->andX(
@@ -95,32 +97,48 @@ class ListMapper extends QBMapper {
             );
         }
 
-        $qb->select('l.*')
+        // Per-user position JOIN — separate parameter for uid to avoid sharing the param expression.
+        $positionJoin = $qb->expr()->andX(
+            $qb->expr()->eq('p.list_id', 'l.id'),
+            $qb->expr()->eq('p.uid', $qb->createNamedParameter($uid))
+        );
+
+        $qb->selectAlias('l.id', 'id')
+            ->selectAlias('l.uid', 'uid')
+            ->selectAlias('l.name', 'name')
+            ->selectAlias('l.description', 'description')
+            ->selectAlias('l.icon', 'icon')
+            ->selectAlias('l.has_quantities', 'has_quantities')
+            ->selectAlias('l.created_at', 'created_at')
+            ->selectAlias('l.updated_at', 'updated_at')
+            ->selectAlias('p.position', 'user_position')
             ->from($l, 'l')
-            ->leftJoin('l', $s, 's', $joinCondition)
+            ->leftJoin('l', $s, 's', $shareJoin)
+            ->leftJoin('l', $p, 'p', $positionJoin)
             ->where($qb->expr()->orX(
                 $qb->expr()->eq('l.uid', $qb->createNamedParameter($uid)),
                 $qb->expr()->isNotNull('s.id')
             ))
-            ->groupBy('l.id')
-            ->orderBy('l.position', 'ASC')
-            ->addOrderBy('l.created_at', 'ASC');
+            ->groupBy('l.id', 'p.position')
+            // NULL positions sort to the end (portable: COALESCE with a large sentinel).
+            ->orderBy($qb->createFunction('COALESCE(p.position, 2147483647)'), 'ASC')
+            ->addOrderBy('l.created_at', 'ASC')
+            ->addOrderBy('l.id', 'ASC');
 
-        return $this->findEntities($qb);
-    }
-
-    /**
-     * Bulk-update positions for a set of lists.
-     * @param array<int,int> $positions  map of listId => position
-     */
-    public function updatePositions(array $positions): void {
-        foreach ($positions as $id => $position) {
-            $qb = $this->db->getQueryBuilder();
-            $qb->update($this->getTableName())
-                ->set('position', $qb->createNamedParameter($position, IQueryBuilder::PARAM_INT))
-                ->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)));
-            $qb->executeStatement();
+        $result = $qb->executeQuery();
+        $entities = [];
+        while ($row = $result->fetch()) {
+            // userPosition is a virtual (private) field on ListEntity, not a column
+            // on `lists` — Entity::fromRow would choke on it, so strip it first.
+            $userPos = $row['user_position'] ?? null;
+            unset($row['user_position']);
+            $entity = ListEntity::fromRow($row);
+            $entity->setUserPosition($userPos !== null ? (int) $userPos : null);
+            $entities[] = $entity;
         }
+        $result->closeCursor();
+
+        return $entities;
     }
 
     public function insert(\OCP\AppFramework\Db\Entity $entity): \OCP\AppFramework\Db\Entity {

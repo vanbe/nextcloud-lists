@@ -57,6 +57,20 @@ export const useCategoriesStore = defineStore('categories', {
 			}
 		},
 
+		async reorder(listId, orderedIds) {
+			// Optimistic: re-arrange locally so the UI mirrors the drop immediately
+			const byId = Object.fromEntries(this.categories.map((c) => [c.id, c]))
+			const next = orderedIds.map((id) => byId[id]).filter(Boolean)
+			const previous = this.categories
+			this.categories = next
+			try {
+				await categoriesApi.reorder(listId, orderedIds)
+			} catch {
+				this.categories = previous
+				showError(t('lists', 'Could not save order'))
+			}
+		},
+
 		async destroy(listId, id) {
 			try {
 				await categoriesApi.destroy(listId, id)

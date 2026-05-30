@@ -6,13 +6,15 @@ namespace OCA\Lists\Service;
 
 use OCA\Lists\Db\ShareEntity;
 use OCA\Lists\Db\ShareMapper;
+use OCA\Lists\Db\UserPositionMapper;
 use OCA\Lists\Exception\ForbiddenException;
 use OCA\Lists\Exception\NotFoundException;
 
 class ShareService {
     public function __construct(
-        private readonly ShareMapper       $shareMapper,
-        private readonly PermissionService $permissionService,
+        private readonly ShareMapper        $shareMapper,
+        private readonly UserPositionMapper $positionMapper,
+        private readonly PermissionService  $permissionService,
     ) {}
 
     /** @return ShareEntity[] */
@@ -32,7 +34,15 @@ class ShareService {
         $entity->setShareWith($shareWith);
         $entity->setPermissions($permissions);
 
-        return $this->shareMapper->insert($entity);
+        $created = $this->shareMapper->insert($entity);
+
+        // Direct user-share: give the recipient a row with NULL position so they can reorder.
+        // Group share: no per-user row (recipients aren't enumerated; falls back to default sort).
+        if ($shareType === ShareEntity::TYPE_USER) {
+            $this->positionMapper->ensureRow($shareWith, $listId, null);
+        }
+
+        return $created;
     }
 
     /** @throws NotFoundException|ForbiddenException */
@@ -48,5 +58,10 @@ class ShareService {
         $this->permissionService->requireOwner($listId, $uid);
         $entity = $this->shareMapper->find($id, $listId);
         $this->shareMapper->delete($entity);
+
+        // Mirror: only direct user-shares had a per-user position row.
+        if ($entity->getShareType() === ShareEntity::TYPE_USER) {
+            $this->positionMapper->deleteFor($entity->getShareWith(), $listId);
+        }
     }
 }

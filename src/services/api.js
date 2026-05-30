@@ -47,6 +47,8 @@ export const categoriesApi = {
 		axios.post(`${BASE}/lists/${listId}/categories?format=json`, { name, icon }, { headers: OCS_HEADERS }).then(unwrap),
 	update: (listId, id, fields) =>
 		axios.put(`${BASE}/lists/${listId}/categories/${id}?format=json`, fields, { headers: OCS_HEADERS }).then(unwrap),
+	reorder: (listId, order) =>
+		axios.post(`${BASE}/lists/${listId}/categories/reorder?format=json`, { order }, { headers: OCS_HEADERS }),
 	destroy: (listId, id) =>
 		axios.delete(`${BASE}/lists/${listId}/categories/${id}?format=json`, { headers: OCS_HEADERS }),
 }

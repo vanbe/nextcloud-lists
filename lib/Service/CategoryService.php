@@ -24,9 +24,14 @@ class CategoryService {
     }
 
     /** @throws NotFoundException|ForbiddenException */
-    public function create(int $listId, string $uid, string $name, string $icon = '', int $position = 0): CategoryEntity {
+    public function create(int $listId, string $uid, string $name, string $icon = '', ?int $position = null): CategoryEntity {
         if (!$this->permissions->canWrite($listId, $uid)) {
             throw new ForbiddenException();
+        }
+        // Default position: end of the list (max + 1) so new categories don't tie at 0.
+        if ($position === null) {
+            $max = $this->mapper->maxPositionFor($listId);
+            $position = ($max ?? -1) + 1;
         }
         $entity = new CategoryEntity();
         $entity->setListId($listId);
@@ -34,6 +39,33 @@ class CategoryService {
         $entity->setIcon($icon);
         $entity->setPosition($position);
         return $this->mapper->insert($entity);
+    }
+
+    /**
+     * Reorder categories within a list. IDs not belonging to the list are silently dropped.
+     *
+     * @param int[] $orderedIds  category IDs in the desired display order
+     * @throws NotFoundException|ForbiddenException
+     */
+    public function reorder(int $listId, string $uid, array $orderedIds): void {
+        if (!$this->permissions->canWrite($listId, $uid)) {
+            throw new ForbiddenException();
+        }
+        $existing = $this->mapper->findAll($listId);
+        $valid = array_flip(array_map(fn($c) => $c->getId(), $existing));
+
+        $positions = [];
+        $pos = 0;
+        foreach ($orderedIds as $id) {
+            $id = (int) $id;
+            if (isset($valid[$id])) {
+                $positions[$id] = $pos++;
+            }
+        }
+
+        if (!empty($positions)) {
+            $this->mapper->updatePositions($listId, $positions);
+        }
     }
 
     /** @throws NotFoundException|ForbiddenException */

@@ -21,8 +21,6 @@ use OCP\AppFramework\Db\Entity;
  * @method void setCreatedAt(int $createdAt)
  * @method int getUpdatedAt()
  * @method void setUpdatedAt(int $updatedAt)
- * @method int getPosition()
- * @method void setPosition(int $position)
  */
 class ListEntity extends Entity {
     protected string $uid = '';
@@ -30,17 +28,16 @@ class ListEntity extends Entity {
     protected ?string $description = null;
     protected ?string $icon = null;
     protected int $hasQuantities = -1; // sentinel: NC setter skips value unchanged from init
-    protected int $position = 0;
     protected int $createdAt = 0;
     protected int $updatedAt = 0;
 
-    // Virtual field — not persisted, computed on read
+    // Virtual fields — not persisted, computed on read
     private int $activeItemCount = 0;
+    private ?int $userPosition = null;
 
     public function __construct() {
         $this->addType('id', 'integer');
         $this->addType('hasQuantities', 'integer');
-        $this->addType('position', 'integer');
         $this->addType('createdAt', 'integer');
         $this->addType('updatedAt', 'integer');
     }
@@ -57,6 +54,14 @@ class ListEntity extends Entity {
         $this->activeItemCount = $count;
     }
 
+    public function getUserPosition(): ?int {
+        return $this->userPosition;
+    }
+
+    public function setUserPosition(?int $position): void {
+        $this->userPosition = $position;
+    }
+
     public function jsonSerialize(): array {
         return [
             'id'              => $this->getId(),
@@ -65,7 +70,7 @@ class ListEntity extends Entity {
             'description'     => $this->getDescription(),
             'icon'            => $this->getIcon(),
             'hasQuantities'   => $this->hasQuantities(),
-            'position'        => $this->getPosition(),
+            'position'        => $this->userPosition,
             'activeItemCount' => $this->activeItemCount,
             'createdAt'       => $this->getCreatedAt(),
             'updatedAt'       => $this->getUpdatedAt(),
