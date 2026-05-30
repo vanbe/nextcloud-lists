@@ -251,7 +251,8 @@ export default {
 		},
 
 		async onReorder(orderedIds) {
-			this.reorderOpen = false
+			// Auto-save on drop: persist the new order but keep the modal open
+			// so the user can keep reordering. Modal closes on Done / X / Esc.
 			await this.store.reorder(orderedIds)
 		},
 

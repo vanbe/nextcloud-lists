@@ -2,60 +2,47 @@
 	<NcDialog
 		:name="t('lists', 'Manage categories')"
 		size="normal"
-		close-on-click-outside
 		@closing="$emit('close')">
 		<div class="mc__body">
-			<draggable
-				v-if="categories.length"
-				:list="categories"
-				tag="ul"
-				class="mc__list"
-				handle=".mc__handle"
-				item-key="id"
-				:animation="180"
-				:force-fallback="true"
-				:fallback-tolerance="3"
-				:scroll-sensitivity="80"
-				ghost-class="mc__item--ghost"
-				chosen-class="mc__item--chosen"
-				drag-class="mc__item--drag"
-				@end="onDragEnd">
-				<template #item="{ element: cat }">
-					<li class="mc__item">
-						<button
-							class="mc__handle"
-							type="button"
-							:aria-label="t('lists', 'Drag to reorder')"
-							:title="t('lists', 'Drag to reorder')">
-							<DragVertical :size="20" />
-						</button>
+			<ul v-if="categories.length" ref="sortableRoot" class="mc__list">
+				<li
+					v-for="cat in categories"
+					:key="cat.id"
+					class="mc__item"
+					:data-id="cat.id">
+					<button
+						class="mc__handle"
+						type="button"
+						:aria-label="t('lists', 'Drag to reorder')"
+						:title="t('lists', 'Drag to reorder')">
+						<DragVertical :size="20" />
+					</button>
 
-						<button
-							class="mc__icon-display"
-							:title="t('lists', 'Change icon')"
-							@click="openPickerForCat(cat)">
-							<span v-if="cat.icon" class="mc__icon-val">{{ cat.icon }}</span>
-							<span v-else class="mc__icon-placeholder">🙂</span>
-						</button>
+					<button
+						class="mc__icon-display"
+						:title="t('lists', 'Change icon')"
+						@click="openPickerForCat(cat)">
+						<span v-if="cat.icon" class="mc__icon-val">{{ cat.icon }}</span>
+						<span v-else class="mc__icon-placeholder">🙂</span>
+					</button>
 
-						<input
-							v-model="drafts[cat.id]"
-							class="mc__name-input"
-							type="text"
-							maxlength="255"
-							:placeholder="t('lists', 'Name')"
-							@blur="onNameBlur(cat)"
-							@keydown.enter.prevent="onNameBlur(cat)" />
+					<input
+						v-model="drafts[cat.id]"
+						class="mc__name-input"
+						type="text"
+						maxlength="255"
+						:placeholder="t('lists', 'Name')"
+						@blur="onNameBlur(cat)"
+						@keydown.enter.prevent="onNameBlur(cat)" />
 
-						<button
-							class="mc__delete"
-							:title="t('lists', 'Delete category')"
-							@click="onDelete(cat)">
-							✕
-						</button>
-					</li>
-				</template>
-			</draggable>
+					<button
+						class="mc__delete"
+						:title="t('lists', 'Delete category')"
+						@click="onDelete(cat)">
+						✕
+					</button>
+				</li>
+			</ul>
 			<p v-else class="mc__empty">{{ t('lists', 'No categories yet.') }}</p>
 
 			<div class="mc__add">
@@ -97,7 +84,7 @@
 import { translate as t } from '@nextcloud/l10n'
 import NcDialog from '@nextcloud/vue/components/NcDialog'
 import NcButton from '@nextcloud/vue/components/NcButton'
-import draggable from 'vuedraggable'
+import Sortable from 'sortablejs'
 import DragVertical from 'vue-material-design-icons/DragVertical.vue'
 import IconPickerDialog from './IconPickerDialog.vue'
 import { useCategoriesStore } from '../store/categories.js'
@@ -106,7 +93,7 @@ import { useItemsStore } from '../store/items.js'
 export default {
 	name: 'ManageCategoriesModal',
 
-	components: { NcDialog, NcButton, draggable, DragVertical, IconPickerDialog },
+	components: { NcDialog, NcButton, DragVertical, IconPickerDialog },
 
 	props: {
 		listId: { type: Number, required: true },
@@ -146,6 +133,26 @@ export default {
 				this.drafts = next
 			},
 		},
+	},
+
+	mounted() {
+		this.attachSortable()
+	},
+
+	updated() {
+		// The <ul> is conditional on categories.length, so it may appear/disappear.
+		// Re-attach Sortable when the ref shows up and we don't have an instance yet.
+		if (this.$refs.sortableRoot && !this._sortable) {
+			this.attachSortable()
+		} else if (!this.$refs.sortableRoot && this._sortable) {
+			this._sortable.destroy()
+			this._sortable = null
+		}
+	},
+
+	beforeUnmount() {
+		this._sortable?.destroy()
+		this._sortable = null
 	},
 
 	methods: {
@@ -199,10 +206,30 @@ export default {
 			}
 		},
 
-		onDragEnd(evt) {
+		attachSortable() {
+			// Raw SortableJS rather than vuedraggable@4 (the latter's slot-VNode mutation
+			// loops on @vue/compat MODE:2). Sortable moves the DOM; the store action
+			// updates the array, and v-for diffs to a no-op since the DOM already matches.
+			this._sortable = Sortable.create(this.$refs.sortableRoot, {
+				handle: '.mc__handle',
+				animation: 180,
+				forceFallback: true,
+				fallbackTolerance: 3,
+				scrollSensitivity: 80,
+				ghostClass: 'mc__item--ghost',
+				chosenClass: 'mc__item--chosen',
+				dragClass: 'mc__item--drag',
+				onEnd: this.onSortEnd,
+			})
+		},
+
+		onSortEnd(evt) {
 			if (evt.oldIndex === evt.newIndex) return
-			// vuedraggable with :list mutates `categories` in place — reorder is already reflected
-			this.catStore.reorder(this.listId, this.categories.map((c) => c.id))
+			// Derive the new id order from the DOM (Sortable already reordered it).
+			const orderedIds = Array.from(this.$refs.sortableRoot.children)
+				.map((el) => Number(el.dataset.id))
+				.filter((id) => !Number.isNaN(id))
+			this.catStore.reorder(this.listId, orderedIds)
 		},
 	},
 }

@@ -2,39 +2,27 @@
 	<NcDialog
 		:name="t('lists', 'Reorder lists')"
 		size="small"
-		close-on-click-outside
 		@closing="$emit('close')">
 		<p class="reorder-modal__hint">
 			{{ t('lists', 'Drag the handle to reorder. Changes are saved automatically.') }}
 		</p>
 
-		<draggable
-			:list="ordered"
-			tag="ul"
-			class="reorder-modal__list"
-			handle=".reorder-modal__handle"
-			item-key="id"
-			:animation="180"
-			:force-fallback="true"
-			:fallback-tolerance="3"
-			:scroll-sensitivity="80"
-			ghost-class="reorder-modal__item--ghost"
-			chosen-class="reorder-modal__item--chosen"
-			drag-class="reorder-modal__item--drag"
-			@end="onDragEnd">
-			<template #item="{ element: list }">
-				<li class="reorder-modal__item">
-					<button
-						class="reorder-modal__handle"
-						type="button"
-						:aria-label="t('lists', 'Drag to reorder')"
-						:title="t('lists', 'Drag to reorder')">
-						<DragVertical :size="20" />
-					</button>
-					<span class="reorder-modal__name">{{ list.name }}</span>
-				</li>
-			</template>
-		</draggable>
+		<ul ref="sortableRoot" class="reorder-modal__list">
+			<li
+				v-for="list in ordered"
+				:key="list.id"
+				class="reorder-modal__item"
+				:data-id="list.id">
+				<button
+					class="reorder-modal__handle"
+					type="button"
+					:aria-label="t('lists', 'Drag to reorder')"
+					:title="t('lists', 'Drag to reorder')">
+					<DragVertical :size="20" />
+				</button>
+				<span class="reorder-modal__name">{{ list.name }}</span>
+			</li>
+		</ul>
 
 		<p v-if="!ordered.length" class="reorder-modal__empty">
 			{{ t('lists', 'You have no lists to reorder.') }}
@@ -52,13 +40,13 @@
 import { translate as t } from '@nextcloud/l10n'
 import NcDialog from '@nextcloud/vue/components/NcDialog'
 import NcButton from '@nextcloud/vue/components/NcButton'
-import draggable from 'vuedraggable'
+import Sortable from 'sortablejs'
 import DragVertical from 'vue-material-design-icons/DragVertical.vue'
 
 export default {
 	name: 'ReorderModal',
 
-	components: { NcDialog, NcButton, draggable, DragVertical },
+	components: { NcDialog, NcButton, DragVertical },
 
 	props: {
 		lists: { type: Array, required: true },
@@ -72,11 +60,39 @@ export default {
 		}
 	},
 
+	mounted() {
+		// Raw SortableJS rather than vuedraggable@4: the latter's render mutates the
+		// slot's VNodes (key + props), which doesn't survive the Vue-2 VNode shape
+		// emitted by @vue/compat MODE:2 → re-render loop. Sortable just moves the DOM;
+		// we sync `ordered` to the new order in onEnd, which keeps Vue in sync for the
+		// next render.
+		this._sortable = Sortable.create(this.$refs.sortableRoot, {
+			handle: '.reorder-modal__handle',
+			animation: 180,
+			forceFallback: true,
+			fallbackTolerance: 3,
+			scrollSensitivity: 80,
+			ghostClass: 'reorder-modal__item--ghost',
+			chosenClass: 'reorder-modal__item--chosen',
+			dragClass: 'reorder-modal__item--drag',
+			onEnd: this.onSortEnd,
+		})
+	},
+
+	beforeUnmount() {
+		this._sortable?.destroy()
+		this._sortable = null
+	},
+
 	methods: {
 		t,
 
-		onDragEnd(evt) {
+		onSortEnd(evt) {
 			if (evt.oldIndex === evt.newIndex) return
+			// Sortable moved the DOM; mirror that in the Vue data array so the next
+			// render aligns with the DOM (otherwise Vue would re-insert in old order).
+			const moved = this.ordered.splice(evt.oldIndex, 1)[0]
+			this.ordered.splice(evt.newIndex, 0, moved)
 			this.$emit('save', this.ordered.map((l) => l.id))
 		},
 	},
