@@ -42,12 +42,27 @@ Application Nextcloud de TODO / listes de courses, avec partage user/groupe.
 
 **Cible :** `cloud.vanbe.be` = **Nextcloud AIO** (Docker) sur la VM `cloud` (10.10.10.98), pilotée via le repo `../infra` (MCP `homelab-ops`, outils `ssh_exec` / `ssh_put_file`). `occ` tourne **dans le conteneur** : `docker exec nextcloud-aio-nextcloud php occ …`.
 
-**Procédure :**
-1. **Snapshot Proxmox** de la VM `cloud` (VMID 111) avant — filet de rollback.
+**Procédure** (validée 2026-05-30 sur 0.3.3 → 0.3.5 cf. gotcha 4.21) :
+1. **Snapshot Proxmox** de la VM `cloud` (VMID 111) avant — filet de rollback DB (le backup code seul ne suffit pas).
 2. Recos : `occ app:list | grep lists` (install vs upgrade) + `occ config:system:get apps_paths` (repo custom-apps **writable** de l'AIO).
-3. Copier l'app **sans** `src/`, `node_modules/`, `tests/`, `docs/` (cf. `.nextcloudignore` / `make package`) dans `…/custom_apps/lists`, puis `chown -R www-data:www-data`.
-4. `occ app:enable lists` (ou `occ upgrade` si déjà présent) → migrations DB automatiques.
-5. Post-checks : `occ app:list` montre `lists`, page en HTTP 200, **libellés en français**, test rapide ajout + quantité + toggle.
+3. **Packager localement** : `cd /root/code/nextcloud-lists && tar -czf build/artifacts/lists.tar.gz` avec les exclusions du `.nextcloudignore` (src/, node_modules/, tests/, docs/, .git/, dev/, *.map, …). `scp` vers `cloud:/tmp/lists.tar.gz`.
+4. **Backup de l'install actuelle HORS de `custom_apps/`** (gotcha 4.21 : un sous-dossier de custom_apps est scanné comme app candidate → casse `occ upgrade`). Cible : `data/lists-backups/lists.backup-<STAMP>/`.
+   ```bash
+   docker exec nextcloud-aio-nextcloud bash -c "mkdir -p /var/www/html/data/lists-backups && mv /var/www/html/custom_apps/lists /var/www/html/data/lists-backups/lists.backup-$(date +%Y%m%d-%H%M%S)"
+   ```
+5. **Extract + chown** :
+   ```bash
+   docker cp /tmp/lists.tar.gz nextcloud-aio-nextcloud:/tmp/
+   docker exec nextcloud-aio-nextcloud bash -c "cd /var/www/html/custom_apps && tar -xzf /tmp/lists.tar.gz && rm /tmp/lists.tar.gz"
+   docker exec nextcloud-aio-nextcloud chown -R www-data:www-data /var/www/html/custom_apps/lists
+   ```
+6. **`occ upgrade`** (rejoue les migrations DB + désactive maintenance) :
+   ```bash
+   docker exec --user www-data nextcloud-aio-nextcloud php occ upgrade
+   ```
+   Si maintenance reste active après un crash, `php occ maintenance:mode --off` après avoir fixé la cause.
+7. **Post-checks** : `occ app:list` montre la nouvelle version, `curl -sI https://cloud.vanbe.be/index.php/apps/lists/` retourne **401** (auth requise = bon signe, pas 500/404), libellés en français au login, test rapide ajout + quantité + toggle.
+8. **Cleanup** : `rm /tmp/lists.tar.gz` côté host. Garder le backup dans `data/lists-backups/` quelques jours puis purger.
 
 ## Pièges découverts (à ne pas réintroduire)
 - `NcAppContent` ne rend pas son slot par défaut dans @vue/compat MODE:2 → remplacé par `<main id="app-content">` natif.
