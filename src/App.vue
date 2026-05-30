@@ -28,28 +28,31 @@
 				@click="store.select(list.id)">
 				<span class="lists-nav__name">{{ list.name }}</span>
 				<span v-if="list.activeItemCount > 0" class="lists-nav__count">{{ list.activeItemCount }}</span>
-				<NcActions
+				<!-- Manual menu rather than NcActions: the latter's render filters slot
+				     children with `componentOptions.Ctor.extendOptions.name` (Vue 2 VNode
+				     API), which is undefined on @vue/compat MODE:2 VNodes → render returns
+				     nothing, no trigger button. Manual <button>+<div> is bulletproof. -->
+				<button
 					class="lists-nav__actions"
+					:title="t('lists', 'Actions')"
 					:aria-label="t('lists', 'Actions')"
-					container="#app-navigation-vue"
-					@click.stop>
-					<NcActionButton @click="openEdit(list)">
-						<template #icon><Pencil :size="20" /></template>
-						{{ t('lists', 'Edit') }}
-					</NcActionButton>
-					<NcActionButton @click="openShare(list)">
-						<template #icon><ShareVariant :size="20" /></template>
-						{{ t('lists', 'Share') }}
-					</NcActionButton>
-					<NcActionButton @click="openExport(list)">
-						<template #icon><Download :size="20" /></template>
-						{{ t('lists', 'Export') }}
-					</NcActionButton>
-					<NcActionButton @click="onDelete(list)">
-						<template #icon><Delete :size="20" /></template>
-						{{ t('lists', 'Delete') }}
-					</NcActionButton>
-				</NcActions>
+					@click.stop="toggleMenu(list.id)">
+					⋮
+				</button>
+				<div v-if="openMenuId === list.id" class="lists-nav__menu" @click.stop>
+					<button class="lists-nav__menu-item" @click="openEdit(list)">
+						<Pencil :size="16" /> {{ t('lists', 'Edit') }}
+					</button>
+					<button class="lists-nav__menu-item" @click="openShare(list)">
+						<ShareVariant :size="16" /> {{ t('lists', 'Share') }}
+					</button>
+					<button class="lists-nav__menu-item" @click="openExport(list)">
+						<Download :size="16" /> {{ t('lists', 'Export') }}
+					</button>
+					<button class="lists-nav__menu-item lists-nav__menu-item--danger" @click="onDelete(list)">
+						<Delete :size="16" /> {{ t('lists', 'Delete') }}
+					</button>
+				</div>
 			</li>
 		</template>
 	</NcAppNavigation>
@@ -93,8 +96,6 @@
 import { defineAsyncComponent } from 'vue'
 import NcAppNavigation from '@nextcloud/vue/components/NcAppNavigation'
 import NcButton from '@nextcloud/vue/components/NcButton'
-import NcActions from '@nextcloud/vue/components/NcActions'
-import NcActionButton from '@nextcloud/vue/components/NcActionButton'
 import Pencil from 'vue-material-design-icons/Pencil.vue'
 import ShareVariant from 'vue-material-design-icons/ShareVariant.vue'
 import Download from 'vue-material-design-icons/Download.vue'
@@ -119,8 +120,6 @@ export default {
 	components: {
 		NcAppNavigation,
 		NcButton,
-		NcActions,
-		NcActionButton,
 		Pencil,
 		ShareVariant,
 		Download,
@@ -159,6 +158,7 @@ export default {
 			exportTarget: null,
 			formTarget: undefined, // undefined = hidden, null = create mode, object = edit mode
 			reorderOpen: false,
+			openMenuId: null, // id of the list whose ⋮ menu is open (null = all closed)
 			navOpen: false,
 			swipe: { startX: 0, startY: 0, startTime: 0, tracking: false },
 		}
@@ -169,6 +169,7 @@ export default {
 		subscribe('navigation-toggled', this.onNavToggled)
 		document.addEventListener('touchstart', this.onTouchStart, { passive: true })
 		document.addEventListener('touchend', this.onTouchEnd, { passive: true })
+		document.addEventListener('click', this.closeMenu)
 		this.onHashChange = () => this.store.selectFromHash()
 		window.addEventListener('hashchange', this.onHashChange)
 	},
@@ -177,6 +178,7 @@ export default {
 		unsubscribe('navigation-toggled', this.onNavToggled)
 		document.removeEventListener('touchstart', this.onTouchStart)
 		document.removeEventListener('touchend', this.onTouchEnd)
+		document.removeEventListener('click', this.closeMenu)
 		window.removeEventListener('hashchange', this.onHashChange)
 	},
 
@@ -229,19 +231,31 @@ export default {
 			}
 		},
 
+		toggleMenu(id) {
+			this.openMenuId = this.openMenuId === id ? null : id
+		},
+
+		closeMenu() {
+			this.openMenuId = null
+		},
+
 		openShare(list) {
+			this.openMenuId = null
 			this.shareTarget = list
 		},
 
 		openExport(list) {
+			this.openMenuId = null
 			this.exportTarget = list
 		},
 
 		openEdit(list) {
+			this.openMenuId = null
 			this.formTarget = list
 		},
 
 		async onDelete(list) {
+			this.openMenuId = null
 			if (!window.confirm(t('lists', 'Delete "{name}"? This will permanently remove all its items.', { name: list.name }))) return
 			await this.store.destroy(list.id)
 		},
@@ -320,6 +334,66 @@ export default {
 }
 .lists-nav__actions {
 	flex-shrink: 0;
+	background: transparent;
+	border: none;
+	cursor: pointer;
+	color: var(--color-text-lighter);
+	padding: 4px 8px;
+	border-radius: var(--border-radius);
+	font-size: 1.2em;
+	line-height: 1;
+	opacity: 0;
+	transition: opacity 0.12s, background 0.12s;
+}
+.lists-nav__item:hover .lists-nav__actions,
+.lists-nav__item--active .lists-nav__actions,
+.lists-nav__actions:focus-visible {
+	opacity: 1;
+}
+.lists-nav__actions:hover {
+	background: var(--color-background-dark);
+	color: var(--color-main-text);
+}
+.lists-nav__menu {
+	position: absolute;
+	right: 12px;
+	top: 100%;
+	z-index: 1000;
+	background: var(--color-main-background);
+	border: 1px solid var(--color-border);
+	border-radius: var(--border-radius);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+	min-width: 160px;
+	padding: 4px;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+.lists-nav__menu-item {
+	background: transparent;
+	border: none;
+	cursor: pointer;
+	color: var(--color-main-text);
+	text-align: left;
+	padding: 8px 10px;
+	border-radius: var(--border-radius);
+	font-size: 0.95em;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.lists-nav__menu-item:hover {
+	background: var(--color-background-hover);
+}
+.lists-nav__menu-item--danger:hover {
+	background: var(--color-error);
+	color: var(--color-primary-text);
+}
+/* Mobile: always show the ⋮ button (no hover) */
+@media (hover: none) {
+	.lists-nav__actions {
+		opacity: 1;
+	}
 }
 .lists-view {
 	padding: 12px 0 24px 24px;
