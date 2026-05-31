@@ -45,7 +45,16 @@ Application Nextcloud de TODO / listes de courses, avec partage user/groupe.
 **Procédure** (validée 2026-05-30 sur 0.3.3 → 0.3.5 cf. gotcha 4.21) :
 1. **Snapshot Proxmox** de la VM `cloud` (VMID 111) avant — filet de rollback DB (le backup code seul ne suffit pas).
 2. Recos : `occ app:list | grep lists` (install vs upgrade) + `occ config:system:get apps_paths` (repo custom-apps **writable** de l'AIO).
-3. **Packager localement** : `cd /root/code/nextcloud-lists && tar -czf build/artifacts/lists.tar.gz` avec les exclusions du `.nextcloudignore` (src/, node_modules/, tests/, docs/, .git/, dev/, *.map, …). `scp` vers `cloud:/tmp/lists.tar.gz`.
+3. **Packager localement.** ⚠️ `tar --exclude-from=.nextcloudignore -czf x.tgz .` **n'exclut rien** (les patterns `src/`, `node_modules/` ne matchent pas les membres préfixés `./` → archive de 167 Mo). Méthode fiable = stage par copie puis purge (rsync absent du conteneur dev) :
+   ```bash
+   rm -rf /tmp/lists-stage && mkdir -p /tmp/lists-stage
+   cp -a /root/code/nextcloud-lists /tmp/lists-stage/lists
+   cd /tmp/lists-stage/lists && rm -rf src node_modules tests build docs .git .github && \
+     rm -f webpack.config.js package*.json composer.* phpunit.xml vitest.config.js docker-compose.dev.yml Makefile CLAUDE.md krankerl.toml .nextcloudignore && \
+     find . -name '*.map' -delete
+   cd /tmp/lists-stage && tar -czf /tmp/lists.tar.gz lists   # ~620 Ko, top-level `lists/`
+   ```
+   **Transfert** : depuis dockerlocal, la VM cloud est joignable en direct → `scp /tmp/lists.tar.gz root@10.10.10.98:/tmp/` (le nom `cloud` ne résout pas, utiliser l'IP ; clé root déjà autorisée). Vérifier `sha256sum` des deux côtés.
 4. **Backup de l'install actuelle HORS de `custom_apps/`** (gotcha 4.21 : un sous-dossier de custom_apps est scanné comme app candidate → casse `occ upgrade`). Cible : `data/lists-backups/lists.backup-<STAMP>/`.
    ```bash
    docker exec nextcloud-aio-nextcloud bash -c "mkdir -p /var/www/html/data/lists-backups && mv /var/www/html/custom_apps/lists /var/www/html/data/lists-backups/lists.backup-$(date +%Y%m%d-%H%M%S)"
