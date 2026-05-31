@@ -5,7 +5,7 @@
     <name>Lists</name>
     <summary>TODO lists and shopping lists with sharing</summary>
     <description>Manage your TODO and shopping lists, share them with users and groups.</description>
-    <version>0.3.5</version>
+    <version>0.3.6</version>
     <licence>agpl</licence>
     <author mail="charlesv@vanbe.be">Charles Vanbeneden</author>
     <namespace>Lists</namespace>

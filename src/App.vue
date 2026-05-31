@@ -49,6 +49,9 @@
 					<button class="lists-nav__menu-item" @click="openExport(list)">
 						<Download :size="16" /> {{ t('lists', 'Export') }}
 					</button>
+					<button class="lists-nav__menu-item" @click="openDuplicate(list)">
+						<ContentCopy :size="16" /> {{ t('lists', 'Duplicate') }}
+					</button>
 					<button class="lists-nav__menu-item lists-nav__menu-item--danger" @click="onDelete(list)">
 						<Delete :size="16" /> {{ t('lists', 'Delete') }}
 					</button>
@@ -90,6 +93,11 @@
 		@save="onReorder"
 		@close="reorderOpen = false" />
 	<ExportModal v-if="exportTarget" :list="exportTarget" @close="exportTarget = null" />
+	<DuplicateModal
+		v-if="duplicateTarget"
+		:list="duplicateTarget"
+		@close="duplicateTarget = null"
+		@submit="onDuplicateSubmit" />
 </template>
 
 <script>
@@ -99,6 +107,7 @@ import NcButton from '@nextcloud/vue/components/NcButton'
 import Pencil from 'vue-material-design-icons/Pencil.vue'
 import ShareVariant from 'vue-material-design-icons/ShareVariant.vue'
 import Download from 'vue-material-design-icons/Download.vue'
+import ContentCopy from 'vue-material-design-icons/ContentCopy.vue'
 import Delete from 'vue-material-design-icons/Delete.vue'
 import SwapVertical from 'vue-material-design-icons/SwapVertical.vue'
 import { translate as t } from '@nextcloud/l10n'
@@ -113,6 +122,7 @@ const ShareModal = defineAsyncComponent(() => import('./components/ShareModal.vu
 const ListFormModal = defineAsyncComponent(() => import('./components/ListFormModal.vue'))
 const ReorderModal = defineAsyncComponent(() => import('./components/ReorderModal.vue'))
 const ExportModal = defineAsyncComponent(() => import('./components/ExportModal.vue'))
+const DuplicateModal = defineAsyncComponent(() => import('./components/DuplicateModal.vue'))
 
 export default {
 	name: 'App',
@@ -123,6 +133,7 @@ export default {
 		Pencil,
 		ShareVariant,
 		Download,
+		ContentCopy,
 		Delete,
 		SwapVertical,
 		ItemList,
@@ -130,6 +141,7 @@ export default {
 		ListFormModal,
 		ReorderModal,
 		ExportModal,
+		DuplicateModal,
 	},
 
 	setup() {
@@ -156,6 +168,7 @@ export default {
 		return {
 			shareTarget: null,
 			exportTarget: null,
+			duplicateTarget: null,
 			formTarget: undefined, // undefined = hidden, null = create mode, object = edit mode
 			reorderOpen: false,
 			openMenuId: null, // id of the list whose ⋮ menu is open (null = all closed)
@@ -247,6 +260,17 @@ export default {
 		openExport(list) {
 			this.openMenuId = null
 			this.exportTarget = list
+		},
+
+		openDuplicate(list) {
+			this.openMenuId = null
+			this.duplicateTarget = list
+		},
+
+		async onDuplicateSubmit({ name, description }) {
+			const source = this.duplicateTarget
+			this.duplicateTarget = null
+			await this.store.duplicate(source.id, name, description)
 		},
 
 		openEdit(list) {

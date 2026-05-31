@@ -56,6 +56,20 @@ export const useListsStore = defineStore('lists', {
 			}
 		},
 
+		async duplicate(sourceId, name = null, description = null) {
+			try {
+				const list = await listsApi.duplicate(sourceId, name, description)
+				// Re-pull so the sidebar reflects the new list and its position.
+				await this.fetchAll()
+				this.selectedId = list.id
+				this.syncHash()
+				showSuccess(t('lists', 'List duplicated'))
+				return list
+			} catch {
+				showError(t('lists', 'Could not duplicate list'))
+			}
+		},
+
 		async update(id, fields) {
 			try {
 				// hasQuantities: send 1/0 (not boolean) so NC isset() sees it

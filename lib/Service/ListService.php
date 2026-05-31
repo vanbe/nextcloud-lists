@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace OCA\Lists\Service;
 
+use OCA\Lists\Db\CategoryEntity;
 use OCA\Lists\Db\CategoryMapper;
+use OCA\Lists\Db\ItemEntity;
 use OCA\Lists\Db\ItemMapper;
 use OCA\Lists\Db\ListEntity;
 use OCA\Lists\Db\ListMapper;
+use OCA\Lists\Db\ShareEntity;
 use OCA\Lists\Db\ShareMapper;
 use OCA\Lists\Db\UserPositionMapper;
 use OCA\Lists\Exception\ForbiddenException;
@@ -22,6 +25,7 @@ class ListService {
         private readonly ShareMapper        $shareMapper,
         private readonly CategoryMapper     $categoryMapper,
         private readonly UserPositionMapper $positionMapper,
+        private readonly PermissionService  $permissionService,
         private readonly IGroupManager      $groupManager,
         private readonly IUserManager       $userManager,
     ) {}
@@ -63,6 +67,98 @@ class ListService {
 
         $created->setUserPosition(($max ?? -1) + 1);
         return $created;
+    }
+
+    /**
+     * Duplicate an accessible list into a new list owned by $uid: copies items,
+     * categories and shares, and places the copy right after the source in the
+     * user's personal order.
+     *
+     * @throws NotFoundException
+     * @throws ForbiddenException
+     */
+    public function duplicate(int $sourceId, string $uid, ?string $name = null, ?string $description = null): ListEntity {
+        $source = $this->permissionService->getAccessibleList($sourceId, $uid);
+
+        $entity = new ListEntity();
+        $entity->setUid($uid);
+        $entity->setName($name ?? $source->getName());
+        $entity->setDescription($description);
+        $entity->setIcon($source->getIcon());
+        $entity->setHasQuantities($source->getHasQuantities());
+        $created = $this->mapper->insert($entity);
+        $newId   = $created->getId();
+
+        // Categories: copy and remember old→new id mapping to remap item categories.
+        $categoryIdMap = [];
+        foreach ($this->categoryMapper->findAll($sourceId) as $cat) {
+            $copy = new CategoryEntity();
+            $copy->setListId($newId);
+            $copy->setName($cat->getName());
+            $copy->setIcon($cat->getIcon());
+            $copy->setPosition($cat->getPosition());
+            $categoryIdMap[$cat->getId()] = $this->categoryMapper->insert($copy)->getId();
+        }
+
+        // Items: copy with category remapped to the new category id.
+        foreach ($this->itemMapper->findAll($sourceId) as $item) {
+            $copy = new ItemEntity();
+            $copy->setListId($newId);
+            $copy->setTitle($item->getTitle());
+            $copy->setDescription($item->getDescription());
+            $copy->setChecked($item->getChecked());
+            $copy->setCheckedAt($item->getCheckedAt());
+            $copy->setPosition($item->getPosition());
+            $oldCat = $item->getCategoryId();
+            $copy->setCategoryId($oldCat !== null ? ($categoryIdMap[$oldCat] ?? null) : null);
+            $copy->setQuantity($item->getQuantity());
+            $this->itemMapper->insert($copy);
+        }
+
+        // Shares: replicate the same recipients/permissions on the copy.
+        foreach ($this->shareMapper->findAll($sourceId) as $share) {
+            $copy = new ShareEntity();
+            $copy->setListId($newId);
+            $copy->setShareType($share->getShareType());
+            $copy->setShareWith($share->getShareWith());
+            $copy->setPermissions($share->getPermissions());
+            $this->shareMapper->insert($copy);
+
+            // Mirror ShareService::create — direct user-shares get a per-user position row.
+            if ($share->getShareType() === ShareEntity::TYPE_USER) {
+                $this->positionMapper->ensureRow($share->getShareWith(), $newId, null);
+            }
+        }
+
+        // Place the copy right after the source in the user's personal ordering.
+        $this->placeAfter($uid, $sourceId, $newId);
+
+        return $this->mapper->find($newId, $uid);
+    }
+
+    /**
+     * Reorder the user's lists so $newId sits immediately after $sourceId.
+     * Falls back to appending $newId if the source isn't in the user's view.
+     */
+    private function placeAfter(string $uid, int $sourceId, int $newId): void {
+        $groups  = $this->getUserGroups($uid);
+        $visible = $this->mapper->findAllForUser($uid, $groups);
+
+        $ordered = [];
+        foreach ($visible as $list) {
+            if ($list->getId() === $newId) {
+                continue;
+            }
+            $ordered[] = $list->getId();
+            if ($list->getId() === $sourceId) {
+                $ordered[] = $newId;
+            }
+        }
+        if (!in_array($newId, $ordered, true)) {
+            $ordered[] = $newId;
+        }
+
+        $this->reorder($uid, $ordered);
     }
 
     /**

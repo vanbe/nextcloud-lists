@@ -42,6 +42,24 @@ class ListController extends OCSController {
     }
 
     #[NoAdminRequired]
+    public function duplicate(int $id, ?string $name = null, ?string $description = null): DataResponse {
+        if ($name !== null && trim($name) === '') {
+            return new DataResponse(['message' => 'Name is required'], Http::STATUS_BAD_REQUEST);
+        }
+        if ($name !== null && mb_strlen($name) > 255) {
+            return new DataResponse(['message' => 'Name too long (max 255)'], Http::STATUS_BAD_REQUEST);
+        }
+        try {
+            $entity = $this->service->duplicate($id, $this->userId, $name, $description);
+            return new DataResponse($entity->jsonSerialize(), Http::STATUS_CREATED);
+        } catch (NotFoundException) {
+            return new DataResponse(['message' => 'Not found'], Http::STATUS_NOT_FOUND);
+        } catch (ForbiddenException) {
+            return new DataResponse(['message' => 'Forbidden'], Http::STATUS_FORBIDDEN);
+        }
+    }
+
+    #[NoAdminRequired]
     public function show(int $id): DataResponse {
         try {
             $entity = $this->service->find($id, $this->userId);

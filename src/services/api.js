@@ -58,6 +58,8 @@ export const listsApi = {
 		axios.get(`${BASE}/lists?format=json`, { headers: OCS_HEADERS }).then(unwrap),
 	create: (name, description = null, hasQuantities = false) =>
 		axios.post(`${BASE}/lists?format=json`, { name, description, hasQuantities: hasQuantities ? 1 : 0 }, { headers: OCS_HEADERS }).then(unwrap),
+	duplicate: (id, name = null, description = null) =>
+		axios.post(`${BASE}/lists/${id}/duplicate?format=json`, { name, description }, { headers: OCS_HEADERS }).then(unwrap),
 	update: (id, fields) =>
 		axios.put(`${BASE}/lists/${id}?format=json`, fields, { headers: OCS_HEADERS }).then(unwrap),
 	reorder: (order) =>
